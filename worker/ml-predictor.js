@@ -142,16 +142,16 @@ export async function predictHybrid(featureVector, gameState, previousMoves, env
     if (featureVector && featureVector.length === 128) {
       const mlPrediction = predictFromFeatures(featureVector);
 
-      // If ML is confident (>50%), use it
-      if (mlPrediction.confidence > 0.5) {
+      // If ML is confident (>10%), use it - we trust our trained model!
+      if (mlPrediction.confidence > 0.1) {
         return {
           ...mlPrediction,
           method: 'ml'
         };
       }
 
-      // If ML is uncertain, blend with heuristics
-      console.log('[Hybrid] ML uncertain, blending with heuristics');
+      // If ML is very uncertain, blend with heuristics
+      console.log('[Hybrid] ML very uncertain, blending with heuristics');
     }
 
     // Fallback to heuristics

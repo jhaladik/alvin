@@ -216,15 +216,15 @@ async function handlePredict(request, env, corsHeaders) {
       // Try ML prediction first
       const mlPrediction = await predictHybrid(vector, gameState, previousMoves, env);
 
-      if (mlPrediction.action && mlPrediction.confidence > 0.3) {
-        // ML made a confident prediction
+      if (mlPrediction.action && mlPrediction.confidence > 0.1) {
+        // ML made a confident prediction (>10% - we trust our trained model!)
         prediction = {
           ...mlPrediction,
           learnedFrom: similarStates ? similarStates.length : 0,
           usedML: true
         };
       } else {
-        // Fall back to heuristics + similarity search
+        // Fall back to heuristics + similarity search (only if ML is very uncertain)
         prediction = await predictNextMove(
           gameState,
           previousMoves,
