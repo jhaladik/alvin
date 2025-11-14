@@ -53,10 +53,10 @@ class DQNAgent {
         }
 
         // === PATH PLANNING LAYER (Strategic) ===
-        // Try to get move from path planner first
+        // Peek at planned move (non-destructive)
         let plannedMove = null;
         if (window.pathPlanner) {
-            plannedMove = window.pathPlanner.getPlannedMove(gameState);
+            plannedMove = window.pathPlanner.peekPlannedMove(gameState);
         }
 
         try {
@@ -130,6 +130,11 @@ class DQNAgent {
                         finalAction = plannedMove;
                         decisionSource = 'path_planning';
                         console.log(`[Hybrid AI] Following plan: ${plannedMove}`);
+
+                        // Consume the planned move (advance plan)
+                        if (window.pathPlanner) {
+                            window.pathPlanner.consumeMove();
+                        }
                     } else {
                         console.log(`[Hybrid AI] Plan too dangerous, using vectorization: ${data.prediction.action}`);
                         // Path is dangerous, invalidate plan

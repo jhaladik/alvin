@@ -12,10 +12,10 @@ class PathPlanner {
     }
 
     /**
-     * Get next move from path planner
+     * Peek at next move from path planner (non-destructive)
      * Returns null if no plan or plan complete
      */
-    getPlannedMove(gameState) {
+    peekPlannedMove(gameState) {
         // Check if we need a new plan
         if (!this.currentPlan || this.shouldReplan(gameState)) {
             this.currentPlan = this.createPlan(gameState);
@@ -27,8 +27,22 @@ class PathPlanner {
             return null;
         }
 
-        // Follow current plan
-        const nextMove = this.currentPlan.path[this.currentPlan.step];
+        // Plan complete?
+        if (this.currentPlan.step >= this.currentPlan.path.length) {
+            this.currentPlan = null;
+            return null;
+        }
+
+        // Return next move WITHOUT incrementing
+        return this.currentPlan.path[this.currentPlan.step];
+    }
+
+    /**
+     * Advance plan to next step (call after move is executed)
+     */
+    consumeMove() {
+        if (!this.currentPlan) return;
+
         this.currentPlan.step++;
         this.movesSincePlan++;
 
@@ -36,8 +50,6 @@ class PathPlanner {
         if (this.currentPlan.step >= this.currentPlan.path.length) {
             this.currentPlan = null;
         }
-
-        return nextMove;
     }
 
     /**
@@ -377,6 +389,18 @@ class PathPlanner {
     reset() {
         this.currentPlan = null;
         this.movesSincePlan = 0;
+    }
+
+    /**
+     * DEPRECATED: Use peekPlannedMove() + consumeMove() instead
+     * Legacy method for backward compatibility
+     */
+    getPlannedMove(gameState) {
+        const move = this.peekPlannedMove(gameState);
+        if (move) {
+            this.consumeMove();
+        }
+        return move;
     }
 
     /**
