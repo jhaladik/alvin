@@ -507,6 +507,37 @@
             </div>
 
             <div class="section">
+                <h3 style="color: #9966ff;">🗺️ Path Planning</h3>
+                <div id="pathPlanningStatus" style="font-size: 11px;">
+                    <div class="stat-row">
+                        <span class="stat-label">Status:</span>
+                        <span class="ai-prediction" id="planStatus">No Plan</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Goal:</span>
+                        <span class="ai-prediction" id="planGoal">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Moves Left:</span>
+                        <span class="ai-prediction" id="planMovesLeft">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Progress:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="planProgressBar" style="width: 0%; background: linear-gradient(90deg, #9966ff, #cc99ff);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #ff9900;">🔀 Decision Details</h3>
+                <div id="decisionDetails" style="font-size: 11px; color: #aaa;">
+                    <small style="color: #666;">Waiting for decision...</small>
+                </div>
+            </div>
+
+            <div class="section">
                 <h3 style="color: #00ffff;">📊 Score Spread</h3>
                 <div id="scoreSpread" style="font-size: 11px;">
                     <small style="color: #666;">Waiting for prediction...</small>
@@ -530,10 +561,11 @@
             <div class="section">
                 <h3 style="color: #ff6600;">🔬 Training Info</h3>
                 <div style="font-size: 11px; line-height: 1.6; color: #aaa;">
-                    <p><strong style="color: #0f0;">Vectorization:</strong> Game states are converted to 768-dimensional vectors using Cloudflare's BGE model.</p>
-                    <p><strong style="color: #0f0;">Similarity Search:</strong> AI queries past states to find similar situations using cosine similarity.</p>
-                    <p><strong style="color: #0f0;">Reward Signals:</strong> 6 components - score, ghost avoidance, progress, positioning, survival, exploration.</p>
-                    <p><strong style="color: #0f0;">Learning:</strong> AI improves by matching actions to positive rewards in similar states.</p>
+                    <p><strong style="color: #0f0;">Hybrid AI Architecture:</strong> Two-layer decision system combining strategic path planning (A*) with tactical vectorization for safety validation.</p>
+                    <p><strong style="color: #0f0;">Feature Engineering:</strong> Game states converted to 128D vectors with 69 meaningful features: player position, ghost distances/directions, pellet locations, tactical situation (danger level, escape routes, convergence).</p>
+                    <p><strong style="color: #0f0;">Path Planning:</strong> A* pathfinding creates 3-5 move routes to goals (power pellets when threatened, nearest pellets otherwise). Plans abandoned if dangerous (score < -5).</p>
+                    <p><strong style="color: #0f0;">Similarity Search:</strong> Queries Cloudflare Vectorize DB to find similar past states using cosine similarity (typically finds 10+ matches).</p>
+                    <p><strong style="color: #0f0;">Learning:</strong> AI improves by matching actions to positive rewards in similar states, weighted by similarity score.</p>
                 </div>
             </div>
 

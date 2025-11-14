@@ -400,6 +400,12 @@ class PacManGame {
                 if (learnedFromEl && prediction.learnedFrom !== undefined) {
                     learnedFromEl.textContent = prediction.learnedFrom;
                 }
+
+                // Update Path Planning Status
+                this.updatePathPlanningUI();
+
+                // Update Decision Details
+                this.updateDecisionDetailsUI(prediction);
             }
         }
     }
@@ -555,6 +561,8 @@ class PacManGame {
         // Render AI game
         if (this.aiEnabled) {
             this.renderGame(this.aiCtx, this.aiState, '#ff00ff');
+            // Render planned path overlay for AI
+            this.renderPlannedPath(this.aiCtx, this.aiState);
         }
     }
 
@@ -844,6 +852,91 @@ class PacManGame {
         ctx.textAlign = 'left';
     }
 
+    renderPlannedPath(ctx, state) {
+        // Only render path for AI when there's an active plan
+        if (!window.pathPlanner || !window.pathPlanner.currentPlan || state.gameState !== 'playing') {
+            return;
+        }
+
+        const plan = window.pathPlanner.currentPlan;
+        if (!plan.path || plan.path.length === 0) {
+            return;
+        }
+
+        // Start from current AI position
+        let currentX = state.player.x;
+        let currentY = state.player.y;
+
+        // Draw goal marker (pulsing circle)
+        const pulseSize = 3 + Math.sin(Date.now() / 200) * 2;
+        ctx.strokeStyle = '#9966ff';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.arc(
+            plan.goal.x * this.cellSize + this.cellSize / 2,
+            plan.goal.y * this.cellSize + this.cellSize / 2,
+            pulseSize + 5,
+            0,
+            Math.PI * 2
+        );
+        ctx.stroke();
+
+        // Draw path as connected lines with gradient
+        ctx.strokeStyle = '#9966ff';
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(
+            currentX * this.cellSize + this.cellSize / 2,
+            currentY * this.cellSize + this.cellSize / 2
+        );
+
+        // Draw remaining path
+        for (let i = plan.step; i < plan.path.length; i++) {
+            const move = plan.path[i];
+            const nextPos = this.getNextPosition(currentX, currentY, move);
+            currentX = nextPos.x;
+            currentY = nextPos.y;
+
+            ctx.lineTo(
+                currentX * this.cellSize + this.cellSize / 2,
+                currentY * this.cellSize + this.cellSize / 2
+            );
+        }
+
+        ctx.stroke();
+
+        // Draw waypoint markers (small dots along the path)
+        currentX = state.player.x;
+        currentY = state.player.y;
+        ctx.fillStyle = '#cc99ff';
+        ctx.globalAlpha = 0.5;
+
+        for (let i = plan.step; i < plan.path.length; i++) {
+            const move = plan.path[i];
+            const nextPos = this.getNextPosition(currentX, currentY, move);
+            currentX = nextPos.x;
+            currentY = nextPos.y;
+
+            ctx.beginPath();
+            ctx.arc(
+                currentX * this.cellSize + this.cellSize / 2,
+                currentY * this.cellSize + this.cellSize / 2,
+                3,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+
+        // Reset alpha
+        ctx.globalAlpha = 1.0;
+    }
+
     drawPacMan(ctx, x, y, size, direction, mouthOpen) {
         const centerX = x + size / 2;
         const centerY = y + size / 2;
@@ -934,6 +1027,127 @@ class PacManGame {
                 </div>
             </div>`;
         }).join('');
+    }
+
+    updatePathPlanningUI() {
+        const statusEl = document.getElementById('planStatus');
+        const goalEl = document.getElementById('planGoal');
+        const movesLeftEl = document.getElementById('planMovesLeft');
+        const progressBar = document.getElementById('planProgressBar');
+
+        if (!window.pathPlanner || !window.pathPlanner.currentPlan) {
+            // No active plan
+            if (statusEl) statusEl.textContent = 'No Plan';
+            if (statusEl) statusEl.style.color = '#666';
+            if (goalEl) goalEl.textContent = '-';
+            if (movesLeftEl) movesLeftEl.textContent = '-';
+            if (progressBar) progressBar.style.width = '0%';
+            return;
+        }
+
+        const plan = window.pathPlanner.currentPlan;
+        const movesTotal = plan.path.length;
+        const movesLeft = movesTotal - plan.step;
+        const progress = movesTotal > 0 ? ((plan.step / movesTotal) * 100) : 0;
+
+        // Update UI
+        if (statusEl) {
+            statusEl.textContent = 'Active';
+            statusEl.style.color = '#9966ff';
+        }
+
+        if (goalEl) {
+            const goalType = plan.goal.type || 'pellet';
+            goalEl.textContent = `${goalType} at (${plan.goal.x}, ${plan.goal.y})`;
+        }
+
+        if (movesLeftEl) {
+            movesLeftEl.textContent = `${movesLeft} / ${movesTotal}`;
+        }
+
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+        }
+    }
+
+    updateDecisionDetailsUI(prediction) {
+        const detailsEl = document.getElementById('decisionDetails');
+        if (!detailsEl) return;
+
+        let html = '';
+
+        // Show decision source
+        if (prediction.decisionSource) {
+            const sourceColor = prediction.decisionSource === 'path_planning' ? '#9966ff' : '#00ffff';
+            html += `<div style="margin: 5px 0;">
+                <strong style="color: ${sourceColor};">Source:</strong>
+                ${prediction.decisionSource === 'path_planning' ? 'Path Planning' : 'Vectorization'}
+            </div>`;
+        }
+
+        // Show if plan was overridden
+        if (prediction.plannedMove) {
+            const wasOverridden = prediction.plannedMove !== prediction.action;
+
+            if (wasOverridden) {
+                // Plan was overridden - show why
+                const plannedScore = prediction.allScores ? prediction.allScores[prediction.plannedMove] : 'N/A';
+                const actualScore = prediction.allScores ? prediction.allScores[prediction.action] : 'N/A';
+
+                html += `<div style="margin: 8px 0; padding: 8px; background: #2a1a1a; border-left: 3px solid #ff6600; border-radius: 3px;">
+                    <div style="color: #ff6600; font-weight: bold; margin-bottom: 5px;">⚠️ Plan Overridden</div>
+                    <div style="margin: 3px 0;">
+                        <span style="color: #888;">Planned:</span>
+                        <strong style="color: #9966ff;">${prediction.plannedMove}</strong>
+                        <span style="color: ${plannedScore < -5 ? '#ff0000' : '#666'};">(${typeof plannedScore === 'number' ? plannedScore.toFixed(1) : plannedScore})</span>
+                    </div>
+                    <div style="margin: 3px 0;">
+                        <span style="color: #888;">Actual:</span>
+                        <strong style="color: #00ff00;">${prediction.action}</strong>
+                        <span style="color: #00ff00;">(${typeof actualScore === 'number' ? actualScore.toFixed(1) : actualScore})</span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 10px; color: #ff6600;">
+                        Reason: Planned move too dangerous (score < -5)
+                    </div>
+                </div>`;
+            } else {
+                // Following plan
+                html += `<div style="margin: 8px 0; padding: 8px; background: #1a1a2a; border-left: 3px solid #9966ff; border-radius: 3px;">
+                    <div style="color: #9966ff; font-weight: bold;">✓ Following Plan</div>
+                    <div style="margin-top: 5px; font-size: 10px; color: #aaa;">
+                        Planned route is safe and optimal
+                    </div>
+                </div>`;
+            }
+        }
+
+        // Show exploration/fallback/cached status
+        if (prediction.explored) {
+            html += `<div style="margin: 5px 0; color: #ffaa00;">
+                <strong>🎲 Exploration:</strong> Random move for learning
+            </div>`;
+        } else if (prediction.cached) {
+            html += `<div style="margin: 5px 0; color: #666;">
+                <strong>💾 Cached:</strong> Using recent prediction
+            </div>`;
+        } else if (prediction.fallback) {
+            html += `<div style="margin: 5px 0; color: #ff6600;">
+                <strong>⚠️ Fallback:</strong> Using heuristics (API unavailable)
+            </div>`;
+        }
+
+        // Show metrics if available
+        if (prediction.metrics) {
+            const m = prediction.metrics;
+            html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;">
+                <div style="font-size: 10px; color: #666;">
+                    Score Range: ${m.scoreRange ? m.scoreRange.toFixed(1) : 'N/A'} |
+                    Gap: ${m.gapToSecond ? m.gapToSecond.toFixed(1) : 'N/A'}
+                </div>
+            </div>`;
+        }
+
+        detailsEl.innerHTML = html || '<small style="color: #666;">No details available</small>';
     }
 
     evaluateAIPrediction() {
