@@ -45,7 +45,7 @@ def export_to_onnx(checkpoint_path, output_path, opset_version=12):
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
-    print(f"✓ Model loaded")
+    print(f"[+] Model loaded")
     print(f"  Validation accuracy: {checkpoint.get('val_acc', 0):.2f}%")
     print(f"  Architecture: {hidden_dims}")
     print()
@@ -70,13 +70,13 @@ def export_to_onnx(checkpoint_path, output_path, opset_version=12):
         }
     )
 
-    print(f"✓ Exported to: {output_path}")
+    print(f"[+] Exported to: {output_path}")
 
     # Verify ONNX model
     print("\nVerifying ONNX model...")
     onnx_model = onnx.load(output_path)
     onnx.checker.check_model(onnx_model)
-    print("✓ ONNX model is valid")
+    print("[+] ONNX model is valid")
 
     # Test with ONNX Runtime
     print("\nTesting with ONNX Runtime...")
@@ -87,7 +87,7 @@ def export_to_onnx(checkpoint_path, output_path, opset_version=12):
     ort_inputs = {ort_session.get_inputs()[0].name: test_input}
     ort_outputs = ort_session.run(None, ort_inputs)
 
-    print(f"✓ Inference successful")
+    print(f"[+] Inference successful")
     print(f"  Input shape: {test_input.shape}")
     print(f"  Output shape: {ort_outputs[0].shape}")
     print(f"  Output: {ort_outputs[0]}")
@@ -101,9 +101,9 @@ def export_to_onnx(checkpoint_path, output_path, opset_version=12):
     print(f"\nMax difference PyTorch vs ONNX: {diff:.8f}")
 
     if diff < 1e-5:
-        print("✓ Outputs match!")
+        print("[+] Outputs match!")
     else:
-        print("⚠ Warning: Outputs differ slightly")
+        print("[!] Warning: Outputs differ slightly")
 
     # Print model info
     file_size = os.path.getsize(output_path) / (1024 * 1024)
@@ -175,8 +175,8 @@ For better browser support, convert to TFjs format.
     with open(readme_path, 'w') as f:
         f.write(readme)
 
-    print(f"✓ Created {readme_path}")
-    print("\n✓ Deployment package ready!")
+    print(f"[+] Created {readme_path}")
+    print("\n[+] Deployment package ready!")
 
 
 def main():
@@ -184,7 +184,7 @@ def main():
     output_path = "export/pacman_model.onnx"
 
     if not os.path.exists(checkpoint_path):
-        print(f"✗ Checkpoint not found: {checkpoint_path}")
+        print(f"[-] Checkpoint not found: {checkpoint_path}")
         print("\nRun training first:")
         print("  python training/train.py")
         return 1
@@ -199,7 +199,7 @@ def main():
     create_deployment_package(onnx_path)
 
     print("\n" + "=" * 70)
-    print("✓ Export Complete!")
+    print("[+] Export Complete!")
     print("=" * 70)
     print(f"\nModel saved to: {output_path}")
     print("\nNext steps:")

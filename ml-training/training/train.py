@@ -40,7 +40,7 @@ def load_dataset(data_path):
     X = data['X']
     y = data['y']
 
-    print(f"✓ Loaded {len(X)} samples")
+    print(f"[+] Loaded {len(X)} samples")
     print(f"  Features shape: {X.shape}")
     print(f"  Labels shape: {y.shape}")
 
@@ -173,7 +173,7 @@ def train(config):
         dropout=config['dropout']
     )
     model = model.to(device)
-    print(f"✓ Model created")
+    print(f"[+] Model created")
     print(f"  Parameters: {count_parameters(model):,}")
     print(f"  Architecture: {config['hidden_dims']}")
 
@@ -231,7 +231,7 @@ def train(config):
                 'val_loss': val_loss,
                 'config': config
             }, checkpoint_path)
-            print(f"  ✓ Saved best model (val_acc: {val_acc:.2f}%)")
+            print(f"  [+] Saved best model (val_acc: {val_acc:.2f}%)")
         else:
             patience_counter += 1
 
@@ -251,7 +251,7 @@ def train(config):
 
     writer.close()
 
-    print("\n✓ Training complete!")
+    print("\n[+] Training complete!")
     print(f"  Best val accuracy: {best_val_acc:.2f}%")
     print(f"  Test accuracy: {test_acc:.2f}%")
     print(f"  Model saved: {checkpoint_path}")

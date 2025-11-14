@@ -1,7 +1,10 @@
 /**
  * Alvin Pac-Man AI - Cloudflare Worker
  * Handles DQN agent, vectorization, and game state management
+ * NOW WITH REAL ML PREDICTIONS!
  */
+
+import { predictHybrid } from './ml-predictor.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -207,21 +210,52 @@ async function handlePredict(request, env, corsHeaders) {
       }
     }
 
-    // Make prediction based on similar states or heuristics
-    const prediction = await predictNextMove(
-      gameState,
-      previousMoves,
-      vector,
-      similarStates,
-      env
-    );
+    // Make prediction using ML model (with heuristic fallback)
+    let prediction;
+    try {
+      // Try ML prediction first
+      const mlPrediction = await predictHybrid(vector, gameState, previousMoves, env);
+
+      if (mlPrediction.action && mlPrediction.confidence > 0.3) {
+        // ML made a confident prediction
+        prediction = {
+          ...mlPrediction,
+          learnedFrom: similarStates ? similarStates.length : 0,
+          usedML: true
+        };
+      } else {
+        // Fall back to heuristics + similarity search
+        prediction = await predictNextMove(
+          gameState,
+          previousMoves,
+          vector,
+          similarStates,
+          env
+        );
+        prediction.usedML = false;
+      }
+    } catch (error) {
+      console.error('ML prediction failed, using heuristics:', error);
+      // Fall back to original heuristics
+      prediction = await predictNextMove(
+        gameState,
+        previousMoves,
+        vector,
+        similarStates,
+        env
+      );
+      prediction.usedML = false;
+      prediction.mlError = error.message;
+    }
 
     return new Response(JSON.stringify({
       success: true,
       prediction,
       confidence: prediction.confidence,
       similarStatesFound: similarStates.length,
-      queryStrategy: queryStrategy // Show which filter was used
+      queryStrategy: queryStrategy, // Show which filter was used
+      usedML: prediction.usedML, // NEW: Indicate if ML was used
+      method: prediction.method || 'hybrid' // NEW: Show prediction method
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

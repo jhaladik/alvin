@@ -279,7 +279,7 @@ def process_training_data(input_file, output_file):
                        metadata=metadata,
                        action_to_idx=action_to_idx)
 
-    print(f"✓ Saved to {output_file}")
+    print(f"[+] Saved to {output_file}")
 
     return X, y, metadata
 
@@ -292,7 +292,7 @@ def main():
     # Find latest raw data file
     raw_files = glob("data/raw/training_data_*.json")
     if not raw_files:
-        print("✗ No training data found!")
+        print("[-] No training data found!")
         print("Run: python data/fetch_training_data.py first")
         return 1
 
@@ -313,7 +313,7 @@ def main():
         count = np.sum(y == idx)
         print(f"    {action}: {count} ({count/len(y)*100:.1f}%)")
 
-    print("\n✓ Feature extraction complete!")
+    print("\n[+] Feature extraction complete!")
     print("\nNext step:")
     print("  python training/train.py")
 

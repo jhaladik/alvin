@@ -8,7 +8,13 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nEnhance AI learning system with comprehensive statistics and 3-column layout\n\nMajor Features Added:\n- Comprehensive statistics tracking system (statistics.js - 400 lines)\n- 3-column responsive layout (left: game stats, center: gameplay, right: AI training)\n- Real-time AI training dashboard with live visualization\n- Interactive training controls (exploration rate, prediction speed)\n- Enhanced reward calculation with 6-dimensional signals\n- Improved DQN prediction with better heuristics and exploration strategy\n\nGameplay Improvements:\n- Proper lives system with respawn mechanics\n- Game states (playing, paused, game over, won)\n- Invincibility period after death\n- Win/loss conditions\n- Pause/resume functionality (SPACE/ESC)\n- Better game tempo and separate player/ghost movement speeds\n- Visual feedback for all game states\n\nAI Learning Enhancements:\n- Multi-dimensional reward system (score, ghost avoidance, progress, positioning, survival, exploration)\n- Exploration vs exploitation strategy (20% exploration by default)\n- Improved fallback prediction with strategic scoring\n- Prediction caching and throttling\n- Real-time accuracy tracking\n- Reward history logging\n\nStatistics & Analytics:\n- Player stats (games played/won, scores, deaths, survival time)\n- AI learning metrics (predictions, accuracy, confidence)\n- Performance comparison (human vs AI win rates, averages)\n- Data persistence via localStorage\n- JSON export functionality\n- Recent rewards and decisions visualization\n\nUI/UX Improvements:\n- 3-column layout with sidebars for stats and AI training\n- Live reward feed with color-coded values\n- Recent decisions log with outcomes\n- Confidence progress bar\n- Training controls with sliders\n- Detailed training information panel\n- Status indicators with animations\n- Comprehensive game metrics display\n\nBuild System:\n- Build script to bundle frontend files into worker\n- Separate dist/ directory for deployment output\n- Clean source files remain readable\n- Updated deployment process\n\nDocumentation:\n- Created ARCHITECTURE.md with complete system overview\n- Detailed component documentation\n- Data flow diagrams\n- Development guidelines\n\nBundle size: 89 KB (16.8 KB gzipped)\nDeployed to: Cloudflare Workers with AI, Vectorize, and KV bindings\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(chmod:*)",
+      "Bash(ngc:*)",
+      "Bash(where.exe:*)",
+      "Bash(powershell -Command \"ngc whoami\")",
+      "Bash(python -m pip:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

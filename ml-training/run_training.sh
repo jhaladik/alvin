@@ -58,7 +58,7 @@ check_ngc_cli() {
 
 # Check NGC CLI is configured
 check_ngc_config() {
-    if ! ngc whoami &> /dev/null; then
+    if ! ngc batch list &> /dev/null; then
         print_error "NGC CLI not configured!"
         echo ""
         echo "Configure NGC CLI:"
@@ -68,8 +68,7 @@ check_ngc_config() {
         exit 1
     fi
 
-    NGC_USER=$(ngc whoami | grep "Name:" | cut -d':' -f2 | xargs)
-    print_step "Logged in as: $NGC_USER"
+    print_step "NGC CLI authenticated"
 }
 
 # Submit batch job

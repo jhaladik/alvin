@@ -62,11 +62,14 @@ function Check-NgcCli {
 # Check NGC CLI is configured
 function Check-NgcConfig {
     try {
-        $whoami = ngc whoami 2>&1
-        if ($LASTEXITCODE -ne 0) { throw }
-
-        $user = ($whoami | Select-String "Name:" | ForEach-Object { $_ -replace "Name:\s*", "" }).Trim()
-        Print-Step "Logged in as: $user"
+        $result = ngc batch list 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $errorMsg = $result | Out-String
+            if ($errorMsg -like "*authentication*" -or $errorMsg -like "*apikey*" -or $errorMsg -like "*unauthorized*") {
+                throw "Authentication failed"
+            }
+        }
+        Print-Step "NGC CLI authenticated"
         return $true
     } catch {
         Print-Error "NGC CLI not configured!"
