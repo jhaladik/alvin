@@ -46,6 +46,11 @@ class PacManGame {
         this.lastAIPrediction = null; // Stores last prediction to evaluate
         this.previousAIState = null;  // State before AI moved
 
+        // Move sequence tracking for strategy learning
+        this.humanRecentMoves = [];
+        this.aiRecentMoves = [];
+        this.maxRecentMoves = 5;
+
         // Initialize DQN agent and vectorization
         if (window.dqnAgent) {
             window.dqnAgent.reset();
@@ -215,11 +220,18 @@ class PacManGame {
         this.moveCount++;
         document.getElementById('vectorizedMoves').textContent = this.moveCount;
 
-        // Send to vectorization system
+        // Track recent moves for sequence learning
+        this.humanRecentMoves.push(direction);
+        if (this.humanRecentMoves.length > this.maxRecentMoves) {
+            this.humanRecentMoves.shift();
+        }
+
+        // Send to vectorization system with recent moves
         if (window.vectorization) {
             await window.vectorization.vectorizeGameState(
                 this.getSerializableState(this.humanState),
-                direction
+                direction,
+                [...this.humanRecentMoves] // Pass copy of recent moves
             );
         }
     }
@@ -406,6 +418,9 @@ class PacManGame {
 
                 // Update Decision Details
                 this.updateDecisionDetailsUI(prediction);
+
+                // Update Current Strategy Display
+                this.updateCurrentStrategyUI(this.aiState);
             }
         }
     }
@@ -1161,7 +1176,11 @@ class PacManGame {
             let strategyColor = '#666';
             let strategyIcon = '🔍';
 
-            if (prediction.queryStrategy === 'filtered_success') {
+            if (prediction.queryStrategy === 'filtered_strategy') {
+                strategyLabel = 'Filtered: Strategy + Success + Context';
+                strategyColor = '#9966ff';
+                strategyIcon = '🎖️';
+            } else if (prediction.queryStrategy === 'filtered_success') {
                 strategyLabel = 'Filtered: Successful moves only';
                 strategyColor = '#00ff00';
                 strategyIcon = '✨';
@@ -1194,6 +1213,57 @@ class PacManGame {
         }
 
         detailsEl.innerHTML = html || '<small style="color: #666;">No details available</small>';
+    }
+
+    updateCurrentStrategyUI(state) {
+        // Calculate current strategy metrics
+        if (!window.vectorization) return;
+
+        const enrichedMeta = window.vectorization.calculateEnrichedMetadata(state, 0);
+
+        // Update strategy type
+        const strategyEl = document.getElementById('strategyType');
+        if (strategyEl) {
+            strategyEl.textContent = enrichedMeta.detectedStrategy;
+
+            // Color code by strategy
+            const strategyColors = {
+                'hunter': '#ff00ff',
+                'defensive': '#00ff00',
+                'aggressive': '#ff0000',
+                'efficient': '#00ffff',
+                'survivor': '#ffff00',
+                'balanced': '#aaaaaa'
+            };
+            strategyEl.style.color = strategyColors[enrichedMeta.detectedStrategy] || '#aaa';
+        }
+
+        // Update risk level
+        const riskEl = document.getElementById('riskLevel');
+        const riskBar = document.getElementById('riskBar');
+        if (riskEl && riskBar) {
+            const riskPercent = Math.round(enrichedMeta.riskLevel * 100);
+            riskEl.textContent = riskPercent + '%';
+            riskBar.style.width = riskPercent + '%';
+        }
+
+        // Update efficiency
+        const effEl = document.getElementById('efficiency');
+        const effBar = document.getElementById('efficiencyBar');
+        if (effEl && effBar) {
+            const effPercent = Math.round(enrichedMeta.efficiency * 100);
+            effEl.textContent = effPercent + '%';
+            effBar.style.width = effPercent + '%';
+        }
+
+        // Update aggression
+        const aggEl = document.getElementById('aggression');
+        const aggBar = document.getElementById('aggressionBar');
+        if (aggEl && aggBar) {
+            const aggPercent = Math.round(enrichedMeta.aggressionScore * 100);
+            aggEl.textContent = aggPercent + '%';
+            aggBar.style.width = aggPercent + '%';
+        }
     }
 
     evaluateAIPrediction() {

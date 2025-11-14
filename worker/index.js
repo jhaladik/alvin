@@ -113,7 +113,7 @@ async function handleVectorize(request, env, corsHeaders) {
  */
 async function handlePredict(request, env, corsHeaders) {
   try {
-    const { gameState, vector, previousMoves } = await request.json();
+    const { gameState, vector, previousMoves, currentStrategy } = await request.json();
 
     // Use pre-computed vector from feature engineering
     if (!vector || !Array.isArray(vector)) {
@@ -127,55 +127,78 @@ async function handlePredict(request, env, corsHeaders) {
     }
 
     // Query Vectorize DB for similar past states with smart filtering
+    // 4-tier strategy: strategy+success+powerMode → success+powerMode → powerMode → unfiltered
     let similarStates = [];
     let queryStrategy = 'unfiltered';
 
     if (env.VECTORIZE) {
       try {
-        // Build smart filter based on current game context
-        const filter = {};
+        // Tier 1: Try strategy + success + powerMode (best - exact context match)
+        if (currentStrategy) {
+          const strategyFilter = {
+            success: true,
+            powerMode: gameState.powerMode,
+            detectedStrategy: currentStrategy
+          };
 
-        // Filter 1: Only learn from successful moves (reward > -10)
-        // This excludes deaths and close calls
-        filter.success = true;
+          let results = await env.VECTORIZE.query(vector, {
+            topK: 10,
+            filter: strategyFilter,
+            returnMetadata: true
+          });
 
-        // Filter 2: Match power mode context (hunting vs fleeing is very different!)
-        if (gameState.powerMode !== undefined) {
-          filter.powerMode = gameState.powerMode;
+          if (results.matches && results.matches.length >= 5) {
+            similarStates = results.matches;
+            queryStrategy = 'filtered_strategy';
+            console.log(`[Strategy Learning] Using ${currentStrategy} strategy matches (${results.matches.length})`);
+          }
         }
 
-        // Try filtered query first (best quality)
-        let results = await env.VECTORIZE.query(vector, {
-          topK: 10,
-          filter: filter,
-          returnMetadata: true
-        });
+        // Tier 2: Try success + powerMode (good - context match without strategy)
+        if (similarStates.length < 5) {
+          const successFilter = {
+            success: true,
+            powerMode: gameState.powerMode
+          };
 
-        if (results.matches && results.matches.length >= 5) {
-          // Good! We have enough filtered matches
-          similarStates = results.matches;
-          queryStrategy = 'filtered_success';
-        } else {
-          // Not enough successful matches, try without success filter
-          const relaxedFilter = { powerMode: filter.powerMode };
-          results = await env.VECTORIZE.query(vector, {
+          let results = await env.VECTORIZE.query(vector, {
             topK: 10,
-            filter: relaxedFilter,
+            filter: successFilter,
+            returnMetadata: true
+          });
+
+          if (results.matches && results.matches.length >= 5) {
+            similarStates = results.matches;
+            queryStrategy = 'filtered_success';
+          }
+        }
+
+        // Tier 3: Try powerMode only (okay - basic context)
+        if (similarStates.length < 5) {
+          const powermodeFilter = {
+            powerMode: gameState.powerMode
+          };
+
+          let results = await env.VECTORIZE.query(vector, {
+            topK: 10,
+            filter: powermodeFilter,
             returnMetadata: true
           });
 
           if (results.matches && results.matches.length >= 5) {
             similarStates = results.matches;
             queryStrategy = 'filtered_powermode';
-          } else {
-            // Fall back to unfiltered (any similar state)
-            results = await env.VECTORIZE.query(vector, {
-              topK: 10,
-              returnMetadata: true
-            });
-            similarStates = results.matches || [];
-            queryStrategy = 'unfiltered';
           }
+        }
+
+        // Tier 4: Fall back to unfiltered (any similar state)
+        if (similarStates.length < 5) {
+          let results = await env.VECTORIZE.query(vector, {
+            topK: 10,
+            returnMetadata: true
+          });
+          similarStates = results.matches || [];
+          queryStrategy = 'unfiltered';
         }
       } catch (e) {
         console.error('Vectorize query error:', e);

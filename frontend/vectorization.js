@@ -18,10 +18,10 @@ class VectorizationSystem {
     /**
      * Vectorize current game state
      */
-    async vectorizeGameState(gameState, action) {
+    async vectorizeGameState(gameState, action, recentMoves = []) {
         try {
-            // Add to pending batch
-            this.pendingVectorizations.push({ gameState, action });
+            // Add to pending batch with recent moves
+            this.pendingVectorizations.push({ gameState, action, recentMoves });
 
             // Process batch if it's full
             if (this.pendingVectorizations.length >= this.batchSize) {
@@ -58,11 +58,11 @@ class VectorizationSystem {
 
         // Process each item in the batch
         for (const item of batch) {
-            await this.vectorizeSingle(item.gameState, item.action);
+            await this.vectorizeSingle(item.gameState, item.action, item.recentMoves || []);
         }
     }
 
-    async vectorizeSingle(gameState, action) {
+    async vectorizeSingle(gameState, action, recentMoves = []) {
         try {
             // Use feature engineering instead of text embeddings
             if (!window.featureEngineer) {
@@ -98,9 +98,12 @@ class VectorizationSystem {
             // Calculate enriched metadata for better learning
             const enrichedMetadata = this.calculateEnrichedMetadata(gameState, reward);
 
+            // Add recent moves to metadata for sequence learning
+            enrichedMetadata.recentMoves = recentMoves;
+
             // Send to DQN agent for learning (store in backend)
             if (window.dqnAgent) {
-                console.log(`[Vectorization] Storing move with reward ${reward.toFixed(2)}, outcome: ${enrichedMetadata.outcomeType}, success: ${enrichedMetadata.success}`);
+                console.log(`[Vectorization] Storing move with reward ${reward.toFixed(2)}, strategy: ${enrichedMetadata.detectedStrategy}, outcome: ${enrichedMetadata.outcomeType}`);
                 await window.dqnAgent.learnFromMove(gameState, action, reward, vector, enrichedMetadata);
             }
 
@@ -216,16 +219,19 @@ class VectorizationSystem {
         // Calculate ghost proximity metrics
         let minGhostDistance = Infinity;
         let ghostsNearby = 0; // Within 3 tiles
+        let avgGhostDistance = 0;
 
         for (const ghost of gameState.ghosts) {
             const distance = Math.abs(gameState.playerX - ghost.x) +
                            Math.abs(gameState.playerY - ghost.y);
             minGhostDistance = Math.min(minGhostDistance, distance);
+            avgGhostDistance += distance;
 
             if (distance <= 3) {
                 ghostsNearby++;
             }
         }
+        avgGhostDistance = gameState.ghosts.length > 0 ? avgGhostDistance / gameState.ghosts.length : 10;
 
         // Classify outcome type
         let outcomeType = 'safe';
@@ -255,6 +261,23 @@ class VectorizationSystem {
             gamePhase = 'mid';
         }
 
+        // Calculate strategic metrics
+        const strategicMetrics = this.calculateStrategicMetrics(
+            gameState,
+            minGhostDistance,
+            avgGhostDistance,
+            pelletsRemaining,
+            totalPellets
+        );
+
+        // Detect current strategy
+        const detectedStrategy = this.detectStrategy(
+            gameState,
+            minGhostDistance,
+            avgGhostDistance,
+            strategicMetrics
+        );
+
         return {
             // Game context
             powerMode: gameState.powerMode || false,
@@ -266,17 +289,108 @@ class VectorizationSystem {
             // Ghost context
             ghostsNearby: ghostsNearby,
             minGhostDistance: minGhostDistance,
+            avgGhostDistance: avgGhostDistance,
 
             // Outcome classification
             outcomeType: outcomeType,
             scoreGain: reward,
             success: success,
 
+            // Strategic context
+            detectedStrategy: detectedStrategy,
+            riskLevel: strategicMetrics.riskLevel,
+            efficiency: strategicMetrics.efficiency,
+            aggressionScore: strategicMetrics.aggressionScore,
+
+            // Move sequence context (will be populated by game.js)
+            recentMoves: [],
+
             // Strategy context (will be added by DQN agent)
             wasExploration: false,
             wasPathPlanned: false,
             confidence: 0
         };
+    }
+
+    /**
+     * Calculate strategic metrics from current game state
+     */
+    calculateStrategicMetrics(gameState, minGhostDistance, avgGhostDistance, pelletsRemaining, totalPellets) {
+        // 1. Risk Level (0 = safe, 1 = dangerous)
+        let riskLevel = 0;
+
+        if (gameState.powerMode) {
+            // In power mode, risk is lower
+            riskLevel = Math.max(0, 1 - (minGhostDistance / 10));
+            riskLevel *= 0.3; // Scale down in power mode
+        } else {
+            // Normal mode - closer ghosts = higher risk
+            if (minGhostDistance <= 2) {
+                riskLevel = 1.0; // Maximum danger
+            } else if (minGhostDistance <= 4) {
+                riskLevel = 0.7;
+            } else if (minGhostDistance <= 6) {
+                riskLevel = 0.4;
+            } else {
+                riskLevel = 0.1;
+            }
+        }
+
+        // 2. Efficiency (pellets collected / total pellets)
+        const efficiency = totalPellets > 0 ?
+            (totalPellets - pelletsRemaining) / totalPellets : 0;
+
+        // 3. Aggression Score (moving toward danger?)
+        let aggressionScore = 0;
+
+        if (gameState.powerMode) {
+            // In power mode, closer to ghosts = more aggressive (good!)
+            aggressionScore = Math.max(0, 1 - (minGhostDistance / 8));
+        } else {
+            // In normal mode, closer to ghosts = reckless (bad)
+            aggressionScore = minGhostDistance < 5 ? 0.8 : 0.2;
+        }
+
+        return {
+            riskLevel: Math.min(1, Math.max(0, riskLevel)),
+            efficiency: Math.min(1, Math.max(0, efficiency)),
+            aggressionScore: Math.min(1, Math.max(0, aggressionScore))
+        };
+    }
+
+    /**
+     * Detect current strategy from behavior patterns
+     */
+    detectStrategy(gameState, minGhostDistance, avgGhostDistance, metrics) {
+        const { riskLevel, aggressionScore } = metrics;
+
+        // HUNTER: Power mode + moving toward ghosts
+        if (gameState.powerMode && aggressionScore > 0.6) {
+            return 'hunter';
+        }
+
+        // DEFENSIVE: Not in power mode + keeping distance + low risk
+        if (!gameState.powerMode && avgGhostDistance > 5 && riskLevel < 0.3) {
+            return 'defensive';
+        }
+
+        // AGGRESSIVE: Taking risks (close to ghosts) without power mode
+        if (!gameState.powerMode && riskLevel > 0.6) {
+            return 'aggressive';
+        }
+
+        // EFFICIENT: Good progress, moderate safety
+        if (metrics.efficiency > 0.4 && riskLevel < 0.5) {
+            return 'efficient';
+        }
+
+        // SURVIVOR: Low lives, playing very safe
+        if (gameState.lives <= 1 && avgGhostDistance > 6) {
+            return 'survivor';
+        }
+
+        // BALANCED: Default
+        return 'balanced';
     }
 
     /**

@@ -531,6 +531,37 @@
             </div>
 
             <div class="section">
+                <h3 style="color: #ff6600;">🎯 Current Strategy</h3>
+                <div id="currentStrategy" style="font-size: 11px;">
+                    <div class="stat-row">
+                        <span class="stat-label">Strategy:</span>
+                        <span class="ai-prediction" id="strategyType" style="font-weight: bold; text-transform: uppercase;">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Risk Level:</span>
+                        <span class="ai-prediction" id="riskLevel">0%</span>
+                        <div class="progress-bar" style="margin-top: 3px;">
+                            <div class="progress-fill" id="riskBar" style="width: 0%; background: linear-gradient(90deg, #00ff00, #ff0000);"></div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Efficiency:</span>
+                        <span class="ai-prediction" id="efficiency">0%</span>
+                        <div class="progress-bar" style="margin-top: 3px;">
+                            <div class="progress-fill" id="efficiencyBar" style="width: 0%; background: linear-gradient(90deg, #ffaa00, #00ff00);"></div>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Aggression:</span>
+                        <span class="ai-prediction" id="aggression">0%</span>
+                        <div class="progress-bar" style="margin-top: 3px;">
+                            <div class="progress-fill" id="aggressionBar" style="width: 0%; background: linear-gradient(90deg, #666, #ff6600);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
                 <h3 style="color: #ff9900;">🔀 Decision Details</h3>
                 <div id="decisionDetails" style="font-size: 11px; color: #aaa;">
                     <small style="color: #666;">Waiting for decision...</small>
@@ -562,10 +593,10 @@
                 <h3 style="color: #ff6600;">🔬 Training Info</h3>
                 <div style="font-size: 11px; line-height: 1.6; color: #aaa;">
                     <p><strong style="color: #0f0;">Hybrid AI Architecture:</strong> Two-layer decision system combining strategic path planning (A*) with tactical vectorization for safety validation.</p>
-                    <p><strong style="color: #0f0;">Feature Engineering:</strong> Game states converted to 128D vectors with 69 meaningful features: player position, ghost distances/directions, pellet locations, tactical situation (danger level, escape routes, convergence).</p>
-                    <p><strong style="color: #0f0;">Path Planning:</strong> A* pathfinding creates 3-5 move routes to goals (power pellets when threatened, nearest pellets otherwise). Plans abandoned if dangerous (score < -5).</p>
-                    <p><strong style="color: #0f0;">Similarity Search:</strong> Queries Cloudflare Vectorize DB to find similar past states using cosine similarity (typically finds 10+ matches).</p>
-                    <p><strong style="color: #0f0;">Learning:</strong> AI improves by matching actions to positive rewards in similar states, weighted by similarity score.</p>
+                    <p><strong style="color: #0f0;">Strategy Learning:</strong> Auto-detects play styles (hunter/defensive/aggressive/efficient/survivor/balanced) and learns from successful moves using same strategy. 4-tier filtering: strategy+success → success → context → unfiltered.</p>
+                    <p><strong style="color: #0f0;">Feature Engineering:</strong> Game states converted to 128D vectors with 69 features + strategic metrics (risk level, efficiency, aggression score) for context-aware learning.</p>
+                    <p><strong style="color: #0f0;">Move Sequences:</strong> Tracks last 5 moves to learn tactical patterns and combos, not just individual decisions.</p>
+                    <p><strong style="color: #0f0;">Smart Filtering:</strong> Prioritizes learning from successful moves in similar contexts (same strategy, power mode, game phase).</p>
                 </div>
             </div>
 

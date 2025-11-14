@@ -76,6 +76,14 @@ class DQNAgent {
 
             const vector = window.featureEngineer.extractFeatures(gameState);
 
+            // Calculate current strategy for filtering
+            let currentStrategy = null;
+            if (window.vectorization) {
+                // Use vectorization system to detect current strategy
+                const enrichedMeta = window.vectorization.calculateEnrichedMetadata(gameState, 0);
+                currentStrategy = enrichedMeta.detectedStrategy;
+            }
+
             // Call Cloudflare Worker for prediction
             const response = await fetch(`${this.workerURL}/api/predict`, {
                 method: 'POST',
@@ -85,7 +93,8 @@ class DQNAgent {
                 body: JSON.stringify({
                     gameState,
                     vector,
-                    previousMoves: this.previousMoves
+                    previousMoves: this.previousMoves,
+                    currentStrategy: currentStrategy
                 })
             });
 
