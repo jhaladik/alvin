@@ -136,7 +136,8 @@ class DQNAgent {
                     action: finalAction,
                     decisionSource: decisionSource,
                     plannedMove: plannedMove,
-                    overridden: plannedMove && finalAction !== plannedMove
+                    overridden: plannedMove && finalAction !== plannedMove,
+                    queryStrategy: data.queryStrategy // Show which filter was used
                 };
 
                 // Cache the prediction
@@ -274,7 +275,7 @@ class DQNAgent {
     /**
      * Learn from human moves (for future training)
      */
-    async learnFromMove(gameState, humanAction, reward, vector) {
+    async learnFromMove(gameState, humanAction, reward, vector, enrichedMetadata) {
         try {
             await fetch(`${this.workerURL}/api/store-move`, {
                 method: 'POST',
@@ -285,7 +286,8 @@ class DQNAgent {
                     gameState,
                     action: humanAction,
                     reward,
-                    vector  // Pre-computed feature vector
+                    vector,  // Pre-computed feature vector
+                    enrichedMetadata  // Additional context for filtering
                 })
             });
         } catch (error) {

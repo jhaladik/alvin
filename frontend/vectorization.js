@@ -95,10 +95,13 @@ class VectorizationSystem {
             // Calculate reward based on game state
             const reward = this.calculateReward(gameState);
 
+            // Calculate enriched metadata for better learning
+            const enrichedMetadata = this.calculateEnrichedMetadata(gameState, reward);
+
             // Send to DQN agent for learning (store in backend)
             if (window.dqnAgent) {
-                console.log(`[Vectorization] Storing move with reward ${reward.toFixed(2)}`);
-                await window.dqnAgent.learnFromMove(gameState, action, reward, vector);
+                console.log(`[Vectorization] Storing move with reward ${reward.toFixed(2)}, outcome: ${enrichedMetadata.outcomeType}, success: ${enrichedMetadata.success}`);
+                await window.dqnAgent.learnFromMove(gameState, action, reward, vector, enrichedMetadata);
             }
 
             return vectorEntry;
@@ -203,6 +206,77 @@ class VectorizationSystem {
         }
 
         return reward;
+    }
+
+    /**
+     * Calculate enriched metadata for improved AI learning
+     * Provides context beyond just the reward value
+     */
+    calculateEnrichedMetadata(gameState, reward) {
+        // Calculate ghost proximity metrics
+        let minGhostDistance = Infinity;
+        let ghostsNearby = 0; // Within 3 tiles
+
+        for (const ghost of gameState.ghosts) {
+            const distance = Math.abs(gameState.playerX - ghost.x) +
+                           Math.abs(gameState.playerY - ghost.y);
+            minGhostDistance = Math.min(minGhostDistance, distance);
+
+            if (distance <= 3) {
+                ghostsNearby++;
+            }
+        }
+
+        // Classify outcome type
+        let outcomeType = 'safe';
+        if (reward <= -100) {
+            outcomeType = 'death';
+        } else if (reward >= 200) {
+            outcomeType = 'ghost_eaten';
+        } else if (reward >= 10) {
+            outcomeType = 'pellet';
+        } else if (reward < -10) {
+            outcomeType = 'near_miss';
+        } else if (minGhostDistance <= 2) {
+            outcomeType = 'close_call';
+        }
+
+        // Determine success (learn from this move?)
+        const success = reward > -10; // Exclude deaths and close calls
+
+        // Game phase (early/mid/late)
+        const totalPellets = gameState.totalPellets || 250;
+        const pelletsRemaining = gameState.pelletsLeft || 0;
+        const progressRatio = (totalPellets - pelletsRemaining) / totalPellets;
+        let gamePhase = 'early';
+        if (progressRatio > 0.66) {
+            gamePhase = 'late';
+        } else if (progressRatio > 0.33) {
+            gamePhase = 'mid';
+        }
+
+        return {
+            // Game context
+            powerMode: gameState.powerMode || false,
+            powerModeTimer: gameState.powerModeTimer || 0,
+            lives: gameState.lives || 3,
+            pelletsRemaining: pelletsRemaining,
+            gamePhase: gamePhase,
+
+            // Ghost context
+            ghostsNearby: ghostsNearby,
+            minGhostDistance: minGhostDistance,
+
+            // Outcome classification
+            outcomeType: outcomeType,
+            scoreGain: reward,
+            success: success,
+
+            // Strategy context (will be added by DQN agent)
+            wasExploration: false,
+            wasPathPlanned: false,
+            confidence: 0
+        };
     }
 
     /**

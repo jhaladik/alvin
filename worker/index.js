@@ -126,12 +126,57 @@ async function handlePredict(request, env, corsHeaders) {
       });
     }
 
-    // Query Vectorize DB for similar past states
+    // Query Vectorize DB for similar past states with smart filtering
     let similarStates = [];
+    let queryStrategy = 'unfiltered';
+
     if (env.VECTORIZE) {
       try {
-        const results = await env.VECTORIZE.query(vector, { topK: 10 });
-        similarStates = results.matches || [];
+        // Build smart filter based on current game context
+        const filter = {};
+
+        // Filter 1: Only learn from successful moves (reward > -10)
+        // This excludes deaths and close calls
+        filter.success = true;
+
+        // Filter 2: Match power mode context (hunting vs fleeing is very different!)
+        if (gameState.powerMode !== undefined) {
+          filter.powerMode = gameState.powerMode;
+        }
+
+        // Try filtered query first (best quality)
+        let results = await env.VECTORIZE.query(vector, {
+          topK: 10,
+          filter: filter,
+          returnMetadata: true
+        });
+
+        if (results.matches && results.matches.length >= 5) {
+          // Good! We have enough filtered matches
+          similarStates = results.matches;
+          queryStrategy = 'filtered_success';
+        } else {
+          // Not enough successful matches, try without success filter
+          const relaxedFilter = { powerMode: filter.powerMode };
+          results = await env.VECTORIZE.query(vector, {
+            topK: 10,
+            filter: relaxedFilter,
+            returnMetadata: true
+          });
+
+          if (results.matches && results.matches.length >= 5) {
+            similarStates = results.matches;
+            queryStrategy = 'filtered_powermode';
+          } else {
+            // Fall back to unfiltered (any similar state)
+            results = await env.VECTORIZE.query(vector, {
+              topK: 10,
+              returnMetadata: true
+            });
+            similarStates = results.matches || [];
+            queryStrategy = 'unfiltered';
+          }
+        }
       } catch (e) {
         console.error('Vectorize query error:', e);
       }
@@ -150,7 +195,8 @@ async function handlePredict(request, env, corsHeaders) {
       success: true,
       prediction,
       confidence: prediction.confidence,
-      similarStatesFound: similarStates.length
+      similarStatesFound: similarStates.length,
+      queryStrategy: queryStrategy // Show which filter was used
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -170,7 +216,7 @@ async function handlePredict(request, env, corsHeaders) {
  */
 async function handleStoreMove(request, env, corsHeaders) {
   try {
-    const { gameState, action, reward, vector } = await request.json();
+    const { gameState, action, reward, vector, enrichedMetadata } = await request.json();
 
     // Validate vector
     if (!vector || !Array.isArray(vector)) {
@@ -185,29 +231,39 @@ async function handleStoreMove(request, env, corsHeaders) {
 
     const id = `move-${Date.now()}-${Math.random()}`;
 
+    // Prepare metadata with enriched context
+    const metadata = {
+      // Core action data
+      action,
+      reward,
+      timestamp: Date.now(),
+      playerX: gameState.playerX,
+      playerY: gameState.playerY,
+
+      // Enriched context (if provided)
+      ...(enrichedMetadata || {})
+    };
+
     // Store in Vectorize for similarity search
     if (env.VECTORIZE) {
       await env.VECTORIZE.upsert([{
         id,
         values: vector,
-        metadata: {
-          action,
-          reward,
-          timestamp: Date.now(),
-          playerX: gameState.playerX,
-          playerY: gameState.playerY
-        }
+        metadata
       }]);
     }
 
-    // Also store in KV for retrieval
+    // Store in KV for analytics (move sequences, replay)
     if (env.GAME_STATE) {
       await env.GAME_STATE.put(id, JSON.stringify({
         gameState,
         action,
         reward,
-        vector
-      }));
+        vector,
+        metadata
+      }), {
+        expirationTtl: 86400 * 7 // 7 days retention
+      });
     }
 
     return new Response(JSON.stringify({

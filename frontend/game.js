@@ -1155,6 +1155,33 @@ class PacManGame {
             </div>`;
         }
 
+        // Show query strategy (how AI learned)
+        if (prediction.queryStrategy) {
+            let strategyLabel = '';
+            let strategyColor = '#666';
+            let strategyIcon = '🔍';
+
+            if (prediction.queryStrategy === 'filtered_success') {
+                strategyLabel = 'Filtered: Successful moves only';
+                strategyColor = '#00ff00';
+                strategyIcon = '✨';
+            } else if (prediction.queryStrategy === 'filtered_powermode') {
+                strategyLabel = 'Filtered: Same power mode';
+                strategyColor = '#00ffff';
+                strategyIcon = '🎯';
+            } else if (prediction.queryStrategy === 'unfiltered') {
+                strategyLabel = 'Unfiltered: All similar states';
+                strategyColor = '#ffaa00';
+                strategyIcon = '📊';
+            }
+
+            html += `<div style="margin: 8px 0; padding: 6px; background: #1a1a1a; border-left: 3px solid ${strategyColor}; border-radius: 3px;">
+                <div style="font-size: 10px; color: ${strategyColor};">
+                    ${strategyIcon} <strong>Learning Strategy:</strong> ${strategyLabel}
+                </div>
+            </div>`;
+        }
+
         // Show metrics if available
         if (prediction.metrics) {
             const m = prediction.metrics;
