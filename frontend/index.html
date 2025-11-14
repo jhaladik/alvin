@@ -335,6 +335,23 @@
             background: linear-gradient(90deg, #00ff00, #00ffff);
             transition: width 0.3s ease;
         }
+
+        .quality-excellent {
+            color: #00ff00 !important;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .quality-good {
+            color: #00ffff !important;
+        }
+
+        .quality-fair {
+            color: #ffaa00 !important;
+        }
+
+        .quality-poor {
+            color: #ff0000 !important;
+        }
     </style>
 </head>
 <body>
@@ -476,12 +493,23 @@
                     <div class="progress-fill" id="confidenceBar" style="width: 0%"></div>
                 </div>
                 <div class="stat-row">
+                    <span class="stat-label">Quality:</span>
+                    <span class="ai-prediction" id="decisionQuality">-</span>
+                </div>
+                <div class="stat-row">
                     <span class="stat-label">Mode:</span>
                     <span class="ai-prediction" id="predictionMode">Exploit</span>
                 </div>
                 <div class="stat-row">
-                    <span class="stat-label">Vectorized:</span>
+                    <span class="stat-label">Learned From:</span>
                     <span class="ai-prediction" id="vectorizedMoves">0</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #00ffff;">📊 Score Spread</h3>
+                <div id="scoreSpread" style="font-size: 11px;">
+                    <small style="color: #666;">Waiting for prediction...</small>
                 </div>
             </div>
 
@@ -518,6 +546,8 @@
     </div>
 
     <script src="statistics.js"></script>
+    <script src="feature-engineering.js"></script>
+    <script src="path-planner.js"></script>
     <script src="game.js"></script>
     <script src="dqn-agent.js"></script>
     <script src="vectorization.js"></script>

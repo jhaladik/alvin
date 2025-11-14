@@ -38,6 +38,14 @@ export default {
       return new Response(STATISTICS_JS, {
         headers: { 'Content-Type': 'application/javascript' }
       });
+    } else if (url.pathname === '/feature-engineering.js') {
+      return new Response(FEATURE_ENGINEERING_JS, {
+        headers: { 'Content-Type': 'application/javascript' }
+      });
+    } else if (url.pathname === '/path-planner.js') {
+      return new Response(PATH_PLANNER_JS, {
+        headers: { 'Content-Type': 'application/javascript' }
+      });
     } else if (url.pathname === '/game.js') {
       return new Response(GAME_JS, {
         headers: { 'Content-Type': 'application/javascript' }
@@ -59,16 +67,25 @@ export default {
 };
 
 /**
- * Vectorize game state using Cloudflare AI
+ * Vectorize game state (DEPRECATED - now done client-side with feature engineering)
+ * Kept for backward compatibility
  */
 async function handleVectorize(request, env, corsHeaders) {
   try {
-    const { gameState } = await request.json();
+    const { gameState, vector } = await request.json();
 
-    // Create a text representation of the game state for vectorization
+    // If vector is pre-computed (new method), return it
+    if (vector && Array.isArray(vector)) {
+      return new Response(JSON.stringify({
+        success: true,
+        vector: vector
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Fallback: Old text-based method (for backward compatibility)
     const stateText = serializeGameState(gameState);
-
-    // Use Cloudflare AI for text embeddings
     const embeddings = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
       text: stateText
     });
@@ -92,29 +109,48 @@ async function handleVectorize(request, env, corsHeaders) {
 
 /**
  * DQN Agent prediction endpoint
- * Implements the "prefrontal cortex" for next step prediction
+ * Uses pre-computed feature vectors and similarity search
  */
 async function handlePredict(request, env, corsHeaders) {
   try {
-    const { gameState, previousMoves } = await request.json();
+    const { gameState, vector, previousMoves } = await request.json();
 
-    // Get vectorized representation
-    const stateText = serializeGameState(gameState);
-    const embeddings = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
-      text: stateText
-    });
+    // Use pre-computed vector from feature engineering
+    if (!vector || !Array.isArray(vector)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No feature vector provided'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    // Query similar past states using Vectorize
-    const vector = embeddings.data[0];
+    // Query Vectorize DB for similar past states
+    let similarStates = [];
+    if (env.VECTORIZE) {
+      try {
+        const results = await env.VECTORIZE.query(vector, { topK: 10 });
+        similarStates = results.matches || [];
+      } catch (e) {
+        console.error('Vectorize query error:', e);
+      }
+    }
 
-    // Simple DQN-like decision making
-    // In production, this would use a trained model
-    const prediction = await predictNextMove(gameState, previousMoves, vector, env);
+    // Make prediction based on similar states or heuristics
+    const prediction = await predictNextMove(
+      gameState,
+      previousMoves,
+      vector,
+      similarStates,
+      env
+    );
 
     return new Response(JSON.stringify({
       success: true,
       prediction,
-      confidence: prediction.confidence
+      confidence: prediction.confidence,
+      similarStatesFound: similarStates.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -130,18 +166,23 @@ async function handlePredict(request, env, corsHeaders) {
 }
 
 /**
- * Store human move with its vectorized state
+ * Store human move with its pre-computed feature vector
  */
 async function handleStoreMove(request, env, corsHeaders) {
   try {
-    const { gameState, action, reward } = await request.json();
+    const { gameState, action, reward, vector } = await request.json();
 
-    const stateText = serializeGameState(gameState);
-    const embeddings = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
-      text: stateText
-    });
+    // Validate vector
+    if (!vector || !Array.isArray(vector)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No feature vector provided'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    const vector = embeddings.data[0];
     const id = `move-${Date.now()}-${Math.random()}`;
 
     // Store in Vectorize for similarity search
@@ -149,7 +190,13 @@ async function handleStoreMove(request, env, corsHeaders) {
       await env.VECTORIZE.upsert([{
         id,
         values: vector,
-        metadata: { action, reward, timestamp: Date.now() }
+        metadata: {
+          action,
+          reward,
+          timestamp: Date.now(),
+          playerX: gameState.playerX,
+          playerY: gameState.playerY
+        }
       }]);
     }
 
@@ -181,18 +228,22 @@ async function handleStoreMove(request, env, corsHeaders) {
 }
 
 /**
- * Find similar past moves using vectorization
+ * Find similar past moves using pre-computed feature vector
  */
 async function handleSimilarMoves(request, env, corsHeaders) {
   try {
-    const { gameState } = await request.json();
+    const { gameState, vector } = await request.json();
 
-    const stateText = serializeGameState(gameState);
-    const embeddings = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
-      text: stateText
-    });
-
-    const vector = embeddings.data[0];
+    // Validate vector
+    if (!vector || !Array.isArray(vector)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No feature vector provided'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     // Query Vectorize for similar states
     let similarMoves = [];
@@ -229,34 +280,101 @@ function serializeGameState(state) {
 
 /**
  * DQN-inspired prediction logic
- * This is a simplified version - in production, use a trained model
+ * Uses similarity search to learn from past successful moves
  */
-async function predictNextMove(gameState, previousMoves, vector, env) {
+async function predictNextMove(gameState, previousMoves, vector, similarStates, env) {
   const actions = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
 
-  // Simple heuristic-based prediction
-  // In a full DQN implementation, this would use neural network weights
-
+  // Start with heuristic-based scores
   const scores = {};
   for (const action of actions) {
     scores[action] = calculateActionScore(gameState, action, previousMoves);
   }
 
+  // If we have similar states from the database, learn from them
+  if (similarStates && similarStates.length > 0) {
+    const actionRewards = { UP: [], DOWN: [], LEFT: [], RIGHT: [] };
+
+    // Collect rewards for each action from similar states
+    for (const match of similarStates) {
+      const action = match.metadata?.action;
+      const reward = match.metadata?.reward;
+      const similarity = match.score || 0; // Cosine similarity score
+
+      if (action && reward !== undefined && actionRewards[action]) {
+        // Weight by similarity - more similar states have more influence
+        actionRewards[action].push(reward * similarity);
+      }
+    }
+
+    // Apply learning from similar states
+    for (const action of actions) {
+      if (actionRewards[action].length > 0) {
+        // Average reward weighted by similarity
+        const avgReward = actionRewards[action].reduce((a, b) => a + b, 0) /
+                         actionRewards[action].length;
+
+        // Boost score based on learned rewards (with learning rate)
+        const learningRate = 0.3;
+        scores[action] += avgReward * learningRate;
+      }
+    }
+  }
+
   // Find best action
   let bestAction = actions[0];
-  let maxScore = scores[bestAction];
+  let bestActionScore = scores[bestAction];
 
   for (const action of actions) {
-    if (scores[action] > maxScore) {
-      maxScore = scores[action];
+    if (scores[action] > bestActionScore) {
+      bestActionScore = scores[action];
       bestAction = action;
     }
   }
 
+  // Calculate multiple confidence metrics for better transparency
+
+  // 1. Score spread confidence (gap between best and worst)
+  const scoreValues = Object.values(scores);
+  const minScore = Math.min(...scoreValues);
+  const maxScore = Math.max(...scoreValues);
+  const scoreRange = maxScore - minScore;
+  const spreadConfidence = scoreRange > 0 ? Math.min((maxScore - minScore) / 10, 1) : 0.5;
+
+  // 2. Decision clarity (gap between best and second-best)
+  const sortedScores = scoreValues.sort((a, b) => b - a);
+  const gapToSecond = sortedScores.length > 1 ? sortedScores[0] - sortedScores[1] : 0;
+  const clarityConfidence = Math.min(gapToSecond / 5, 1);
+
+  // 3. Softmax-style probabilistic confidence
+  const expScores = scoreValues.map(s => Math.exp(s / 2)); // Temperature = 2
+  const sumExp = expScores.reduce((a, b) => a + b, 0);
+  const bestExpIndex = scoreValues.indexOf(maxScore);
+  const softmaxConfidence = expScores[bestExpIndex] / sumExp;
+
+  // 4. Combined confidence (weighted average)
+  const finalConfidence = (spreadConfidence * 0.4) + (clarityConfidence * 0.3) + (softmaxConfidence * 0.3);
+
+  // 5. Decision quality (is the best choice clearly better?)
+  const decisionQuality = maxScore > 0 && minScore < 0 ? 'excellent' :
+                          gapToSecond > 2 ? 'good' :
+                          gapToSecond > 0.5 ? 'fair' : 'poor';
+
   return {
     action: bestAction,
-    confidence: maxScore,
-    allScores: scores
+    confidence: finalConfidence,
+    allScores: scores,
+    learnedFrom: similarStates ? similarStates.length : 0,
+    metrics: {
+      spreadConfidence: spreadConfidence,
+      clarityConfidence: clarityConfidence,
+      softmaxConfidence: softmaxConfidence,
+      decisionQuality: decisionQuality,
+      scoreRange: scoreRange,
+      gapToSecond: gapToSecond,
+      bestScore: maxScore,
+      worstScore: minScore
+    }
   };
 }
 

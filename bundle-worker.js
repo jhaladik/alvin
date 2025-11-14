@@ -18,12 +18,16 @@ console.log('📦 Building Alvin Pac-Man Worker...\n');
 console.log('📄 Reading frontend files...');
 const html = fs.readFileSync(path.join(__dirname, 'frontend', 'index.html'), 'utf8');
 const statisticsJs = fs.readFileSync(path.join(__dirname, 'frontend', 'statistics.js'), 'utf8');
+const featureEngineeringJs = fs.readFileSync(path.join(__dirname, 'frontend', 'feature-engineering.js'), 'utf8');
+const pathPlannerJs = fs.readFileSync(path.join(__dirname, 'frontend', 'path-planner.js'), 'utf8');
 const gameJs = fs.readFileSync(path.join(__dirname, 'frontend', 'game.js'), 'utf8');
 const dqnAgentJs = fs.readFileSync(path.join(__dirname, 'frontend', 'dqn-agent.js'), 'utf8');
 const vectorizationJs = fs.readFileSync(path.join(__dirname, 'frontend', 'vectorization.js'), 'utf8');
 
 console.log('  ✓ index.html');
 console.log('  ✓ statistics.js');
+console.log('  ✓ feature-engineering.js');
+console.log('  ✓ path-planner.js');
 console.log('  ✓ game.js');
 console.log('  ✓ dqn-agent.js');
 console.log('  ✓ vectorization.js');
@@ -43,6 +47,8 @@ const bundledWorker = workerCode + `
 
 const HTML = ${JSON.stringify(html)};
 const STATISTICS_JS = ${JSON.stringify(statisticsJs)};
+const FEATURE_ENGINEERING_JS = ${JSON.stringify(featureEngineeringJs)};
+const PATH_PLANNER_JS = ${JSON.stringify(pathPlannerJs)};
 const GAME_JS = ${JSON.stringify(gameJs)};
 const DQN_AGENT_JS = ${JSON.stringify(dqnAgentJs)};
 const VECTORIZATION_JS = ${JSON.stringify(vectorizationJs)};

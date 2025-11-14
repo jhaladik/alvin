@@ -42,6 +42,10 @@ class PacManGame {
         this.ghostSpeed = 200;
         this.lastGhostMoveTime = Date.now();
 
+        // AI prediction tracking
+        this.lastAIPrediction = null; // Stores last prediction to evaluate
+        this.previousAIState = null;  // State before AI moved
+
         // Initialize DQN agent and vectorization
         if (window.dqnAgent) {
             window.dqnAgent.reset();
@@ -251,10 +255,22 @@ class PacManGame {
 
             // Update AI avatar
             if (this.aiEnabled && this.aiState.gameState === 'playing') {
+                // Capture state before AI moves
+                this.previousAIState = {
+                    score: this.aiState.score,
+                    lives: this.aiState.lives,
+                    playerX: this.aiState.player.x,
+                    playerY: this.aiState.player.y,
+                    pelletsLeft: this.aiState.pellets.length
+                };
+
                 this.updateAI();
                 this.updatePlayer(this.aiState);
                 this.checkCollisions(this.aiState);
                 this.checkWinCondition(this.aiState);
+
+                // Evaluate the AI's prediction after move completes
+                this.evaluateAIPrediction();
             }
 
             // Toggle mouth animation
@@ -325,6 +341,16 @@ class PacManGame {
             );
 
             if (prediction && prediction.action) {
+                // Store prediction for evaluation after move
+                this.lastAIPrediction = {
+                    action: prediction.action,
+                    confidence: prediction.confidence,
+                    timestamp: Date.now(),
+                    explored: prediction.explored,
+                    cached: prediction.cached,
+                    fallback: prediction.fallback
+                };
+
                 this.aiState.player.direction = prediction.action;
 
                 // Update UI with AI's next move
@@ -338,22 +364,41 @@ class PacManGame {
                     confidenceBar.style.width = confidence + '%';
                 }
 
-                // Update prediction mode
+                // Update prediction mode (show decision source)
                 const modeEl = document.getElementById('predictionMode');
                 if (modeEl) {
-                    modeEl.textContent = prediction.explored ? 'Explore' :
-                                        prediction.cached ? 'Cached' :
-                                        prediction.fallback ? 'Fallback' : 'Exploit';
+                    let modeText = '';
+                    if (prediction.explored) {
+                        modeText = 'Explore';
+                    } else if (prediction.cached) {
+                        modeText = 'Cached';
+                    } else if (prediction.fallback) {
+                        modeText = 'Fallback';
+                    } else if (prediction.decisionSource === 'path_planning') {
+                        modeText = 'Path Plan';
+                    } else if (prediction.overridden) {
+                        modeText = 'Override';
+                    } else {
+                        modeText = 'Exploit';
+                    }
+                    modeEl.textContent = modeText;
                 }
 
-                // Track decision
-                if (window.gameStats) {
-                    window.gameStats.currentGame.aiPredictions.push({
-                        timestamp: Date.now(),
-                        action: prediction.action,
-                        outcome: 'neutral',
-                        reward: 0
-                    });
+                // Update decision quality (NEW!)
+                const qualityEl = document.getElementById('decisionQuality');
+                if (qualityEl && prediction.metrics) {
+                    const quality = prediction.metrics.decisionQuality;
+                    qualityEl.textContent = quality.toUpperCase();
+                    qualityEl.className = 'ai-prediction quality-' + quality;
+                }
+
+                // Update score spread (NEW!)
+                this.updateScoreSpread(prediction.allScores, prediction.action);
+
+                // Update learned from counter (show similarStatesFound from backend)
+                const learnedFromEl = document.getElementById('vectorizedMoves');
+                if (learnedFromEl && prediction.learnedFrom !== undefined) {
+                    learnedFromEl.textContent = prediction.learnedFrom;
                 }
             }
         }
@@ -630,10 +675,19 @@ class PacManGame {
             const outcomeColor = d.outcome === 'death' ? '#ff0000' :
                                 d.outcome === 'pellet' ? '#00ff00' :
                                 d.outcome === 'ghost_eaten' ? '#00ffff' :
-                                d.outcome === 'power' ? '#ffaa00' : '#666';
+                                d.outcome === 'power' ? '#ffaa00' :
+                                d.outcome === 'close_call' ? '#ff6600' : '#666';
+
+            const successIcon = d.wasSuccessful === true ? '✓' :
+                               d.wasSuccessful === false ? '✗' : '';
+            const rewardText = d.reward !== undefined ? `${d.reward > 0 ? '+' : ''}${d.reward.toFixed(0)}` : '';
+
             return `<div class="decision-item">
                 <span style="color: ${outcomeColor};">${d.action}</span>
-                <span style="float: right; color: #666; font-size: 9px;">${d.outcome}</span>
+                <span style="float: right;">
+                    <span style="color: ${d.wasSuccessful ? '#00ff00' : '#ff0000'}; margin-right: 3px;">${successIcon}</span>
+                    <span style="color: ${d.reward > 0 ? '#00ff00' : d.reward < 0 ? '#ff0000' : '#666'}; font-size: 9px;">${rewardText}</span>
+                </span>
             </div>`;
         }).join('');
     }
@@ -845,14 +899,141 @@ class PacManGame {
         ctx.fill();
     }
 
+    updateScoreSpread(allScores, chosenAction) {
+        const spreadEl = document.getElementById('scoreSpread');
+        if (!spreadEl || !allScores) return;
+
+        const scores = Object.entries(allScores).map(([action, score]) => ({
+            action,
+            score,
+            chosen: action === chosenAction
+        }));
+
+        // Sort by score (best first)
+        scores.sort((a, b) => b.score - a.score);
+
+        // Find min/max for scaling
+        const minScore = Math.min(...scores.map(s => s.score));
+        const maxScore = Math.max(...scores.map(s => s.score));
+        const range = maxScore - minScore;
+
+        spreadEl.innerHTML = scores.map(s => {
+            // Scale to 0-100 for visualization
+            const normalized = range > 0 ? ((s.score - minScore) / range) * 100 : 50;
+            const barColor = s.score > 0 ? '#00ff00' :
+                           s.score < 0 ? '#ff0000' : '#666';
+            const highlight = s.chosen ? 'border: 2px solid #ffff00; font-weight: bold;' : '';
+
+            return `<div style="margin: 5px 0; padding: 3px; ${highlight}">
+                <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+                    <span style="color: ${s.chosen ? '#ffff00' : '#aaa'};">${s.action}</span>
+                    <span style="color: ${barColor};">${s.score > 0 ? '+' : ''}${s.score.toFixed(1)}</span>
+                </div>
+                <div style="background: #222; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: ${barColor}; width: ${normalized}%; height: 100%; transition: width 0.3s;"></div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    evaluateAIPrediction() {
+        // Only evaluate if we have a prediction and previous state
+        if (!this.lastAIPrediction || !this.previousAIState || !window.gameStats) {
+            return;
+        }
+
+        // Calculate what happened during this move
+        const scoreDelta = this.aiState.score - this.previousAIState.score;
+        const livesDelta = this.aiState.lives - this.previousAIState.lives;
+        const pelletsDelta = this.previousAIState.pelletsLeft - this.aiState.pellets.length;
+
+        // Calculate reward (same logic as vectorization.js but simplified)
+        let reward = 0;
+        let outcome = 'neutral';
+
+        // Death is very bad
+        if (livesDelta < 0) {
+            reward = -100;
+            outcome = 'death';
+        }
+        // Score increase is good
+        else if (scoreDelta > 0) {
+            reward = scoreDelta;
+            if (scoreDelta >= 200) {
+                outcome = 'ghost_eaten'; // Ate a ghost
+            } else if (scoreDelta >= 50) {
+                outcome = 'power'; // Got power pellet
+            } else if (scoreDelta >= 10) {
+                outcome = 'pellet'; // Got normal pellet
+            }
+        }
+        // Collected pellet without dying
+        else if (pelletsDelta > 0) {
+            reward = 10;
+            outcome = 'pellet';
+        }
+        // Check ghost proximity (danger)
+        else {
+            let minGhostDistance = Infinity;
+            for (const ghost of this.aiState.ghosts) {
+                const dist = Math.abs(ghost.x - this.aiState.player.x) +
+                            Math.abs(ghost.y - this.aiState.player.y);
+                minGhostDistance = Math.min(minGhostDistance, dist);
+            }
+
+            // Close call
+            if (minGhostDistance <= 2 && !this.aiState.powerMode) {
+                reward = -10;
+                outcome = 'close_call';
+            } else {
+                // Survived, small positive reward
+                reward = 1;
+                outcome = 'neutral';
+            }
+        }
+
+        // Determine if prediction was successful based on reward threshold
+        const wasSuccessful = reward > -10; // Failed if reward < -10 (death or close call)
+
+        // Track accuracy with actual confidence value
+        window.gameStats.trackPredictionAccuracy(wasSuccessful, this.lastAIPrediction.confidence);
+
+        // Track decision for UI display
+        window.gameStats.currentGame.aiPredictions.push({
+            timestamp: this.lastAIPrediction.timestamp,
+            action: this.lastAIPrediction.action,
+            outcome: outcome,
+            reward: reward,
+            confidence: this.lastAIPrediction.confidence,
+            wasSuccessful: wasSuccessful
+        });
+
+        // Keep only last 20 predictions for UI
+        if (window.gameStats.currentGame.aiPredictions.length > 20) {
+            window.gameStats.currentGame.aiPredictions.shift();
+        }
+    }
+
     getSerializableState(state) {
         return {
             playerX: state.player.x,
             playerY: state.player.y,
             direction: state.player.direction,
-            ghosts: state.ghosts.map(g => ({ x: g.x, y: g.y })),
+            ghosts: state.ghosts.map(g => ({
+                x: g.x,
+                y: g.y,
+                scared: state.powerMode || false,
+                direction: g.direction
+            })),
+            pellets: state.pellets.map(p => ({ x: p.x, y: p.y })),
+            powerPellets: state.powerPellets.map(p => ({ x: p.x, y: p.y })),
+            walls: state.walls.map(w => ({ x: w.x, y: w.y })),
             pelletsLeft: state.pellets.length,
-            score: state.score
+            totalPellets: state.totalPellets,
+            score: state.score,
+            lives: state.lives,
+            powerMode: state.powerMode,
+            powerModeTimer: state.powerModeTimer
         };
     }
 

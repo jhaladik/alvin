@@ -18,6 +18,11 @@ class DQNAgent {
     reset() {
         this.previousMoves = [];
         this.predictionCache.clear();
+
+        // Reset path planner too
+        if (window.pathPlanner) {
+            window.pathPlanner.reset();
+        }
     }
 
     async predictNextMove(gameState) {
@@ -47,6 +52,13 @@ class DQNAgent {
             return randomPrediction;
         }
 
+        // === PATH PLANNING LAYER (Strategic) ===
+        // Try to get move from path planner first
+        let plannedMove = null;
+        if (window.pathPlanner) {
+            plannedMove = window.pathPlanner.getPlannedMove(gameState);
+        }
+
         try {
             // Check cache first
             const stateKey = this.getStateKey(gameState);
@@ -56,6 +68,14 @@ class DQNAgent {
                 return cached;
             }
 
+            // Extract features using feature engineering
+            if (!window.featureEngineer) {
+                console.error('Feature engineer not initialized');
+                return this.fallbackPrediction(gameState);
+            }
+
+            const vector = window.featureEngineer.extractFeatures(gameState);
+
             // Call Cloudflare Worker for prediction
             const response = await fetch(`${this.workerURL}/api/predict`, {
                 method: 'POST',
@@ -64,6 +84,7 @@ class DQNAgent {
                 },
                 body: JSON.stringify({
                     gameState,
+                    vector,
                     previousMoves: this.previousMoves
                 })
             });
@@ -76,8 +97,50 @@ class DQNAgent {
             const data = await response.json();
 
             if (data.success && data.prediction) {
+                // Debug: Log similar states found
+                if (data.similarStatesFound !== undefined) {
+                    console.log(`[AI Learning] Found ${data.similarStatesFound} similar past states`);
+                    if (data.prediction.learnedFrom) {
+                        console.log(`[AI Learning] Learned from ${data.prediction.learnedFrom} states`);
+                    }
+                }
+
+                // === HYBRID DECISION: Path Planning + Vectorization ===
+                let finalAction = data.prediction.action;
+                let decisionSource = 'vectorization';
+
+                // If we have a planned move, validate it with vectorization
+                if (plannedMove && data.prediction.allScores) {
+                    const plannedScore = data.prediction.allScores[plannedMove];
+                    const bestScore = Math.max(...Object.values(data.prediction.allScores));
+
+                    console.log(`[Hybrid AI] Planned: ${plannedMove} (score: ${plannedScore?.toFixed(1)}), Best: ${data.prediction.action} (score: ${bestScore.toFixed(1)})`);
+
+                    // Use planned move if it's reasonably safe (score > -5)
+                    if (plannedScore !== undefined && plannedScore > -5) {
+                        finalAction = plannedMove;
+                        decisionSource = 'path_planning';
+                        console.log(`[Hybrid AI] Following plan: ${plannedMove}`);
+                    } else {
+                        console.log(`[Hybrid AI] Plan too dangerous, using vectorization: ${data.prediction.action}`);
+                        // Path is dangerous, invalidate plan
+                        if (window.pathPlanner) {
+                            window.pathPlanner.currentPlan = null;
+                        }
+                    }
+                }
+
+                // Create final prediction
+                const finalPrediction = {
+                    ...data.prediction,
+                    action: finalAction,
+                    decisionSource: decisionSource,
+                    plannedMove: plannedMove,
+                    overridden: plannedMove && finalAction !== plannedMove
+                };
+
                 // Cache the prediction
-                this.predictionCache.set(stateKey, data.prediction);
+                this.predictionCache.set(stateKey, finalPrediction);
 
                 // Limit cache size
                 if (this.predictionCache.size > 100) {
@@ -86,7 +149,7 @@ class DQNAgent {
                 }
 
                 // Update move history
-                this.previousMoves.push(data.prediction.action);
+                this.previousMoves.push(finalPrediction.action);
                 if (this.previousMoves.length > this.maxHistoryLength) {
                     this.previousMoves.shift();
                 }
@@ -96,9 +159,12 @@ class DQNAgent {
                     window.gameStats.learningMetrics.totalPredictions++;
                     window.gameStats.learningMetrics.vectorizedStates =
                         this.predictionCache.size;
+                    // Track how many states we're learning from
+                    window.gameStats.learningMetrics.uniqueStatesLearned =
+                        data.similarStatesFound || 0;
                 }
 
-                return data.prediction;
+                return finalPrediction;
             } else {
                 return this.fallbackPrediction(gameState);
             }
@@ -208,7 +274,7 @@ class DQNAgent {
     /**
      * Learn from human moves (for future training)
      */
-    async learnFromMove(gameState, humanAction, reward) {
+    async learnFromMove(gameState, humanAction, reward, vector) {
         try {
             await fetch(`${this.workerURL}/api/store-move`, {
                 method: 'POST',
@@ -218,7 +284,8 @@ class DQNAgent {
                 body: JSON.stringify({
                     gameState,
                     action: humanAction,
-                    reward
+                    reward,
+                    vector  // Pre-computed feature vector
                 })
             });
         } catch (error) {

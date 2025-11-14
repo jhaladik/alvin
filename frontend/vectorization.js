@@ -64,47 +64,44 @@ class VectorizationSystem {
 
     async vectorizeSingle(gameState, action) {
         try {
-            const response = await fetch(`${this.workerURL}/api/vectorize`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ gameState })
-            });
-
-            if (!response.ok) {
-                console.error('Vectorization API error:', response.statusText);
+            // Use feature engineering instead of text embeddings
+            if (!window.featureEngineer) {
+                console.error('Feature engineer not initialized');
                 return null;
             }
 
-            const data = await response.json();
+            // Extract numerical features from game state
+            const vector = window.featureEngineer.extractFeatures(gameState);
 
-            if (data.success && data.vector) {
-                // Store vector with metadata
-                const vectorEntry = {
-                    vector: data.vector,
-                    gameState,
-                    action,
-                    timestamp: Date.now()
-                };
+            // Debug: Verify feature extraction
+            console.log(`[Vectorization] Extracted ${vector.length}D vector for action ${action}`);
+            console.log(`[Vectorization] Sample features: player=(${gameState.playerX},${gameState.playerY}), ghosts=${gameState.ghosts.length}, pellets=${gameState.pelletsLeft}`);
 
-                this.vectorHistory.push(vectorEntry);
+            // Store vector with metadata
+            const vectorEntry = {
+                vector: vector,
+                gameState,
+                action,
+                timestamp: Date.now()
+            };
 
-                // Limit history size
-                if (this.vectorHistory.length > this.maxVectorHistory) {
-                    this.vectorHistory.shift();
-                }
+            this.vectorHistory.push(vectorEntry);
 
-                // Calculate reward based on game state
-                const reward = this.calculateReward(gameState);
-
-                // Send to DQN agent for learning
-                if (window.dqnAgent) {
-                    await window.dqnAgent.learnFromMove(gameState, action, reward);
-                }
-
-                return vectorEntry;
+            // Limit history size
+            if (this.vectorHistory.length > this.maxVectorHistory) {
+                this.vectorHistory.shift();
             }
+
+            // Calculate reward based on game state
+            const reward = this.calculateReward(gameState);
+
+            // Send to DQN agent for learning (store in backend)
+            if (window.dqnAgent) {
+                console.log(`[Vectorization] Storing move with reward ${reward.toFixed(2)}`);
+                await window.dqnAgent.learnFromMove(gameState, action, reward, vector);
+            }
+
+            return vectorEntry;
         } catch (error) {
             console.error('Vectorization error:', error);
             return null;
