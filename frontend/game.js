@@ -413,6 +413,9 @@ class PacManGame {
                     learnedFromEl.textContent = prediction.learnedFrom;
                 }
 
+                // Update ML Prediction Status (NEW!)
+                this.updateMLStatusUI(prediction);
+
                 // Update Path Planning Status
                 this.updatePathPlanningUI();
 
@@ -1101,6 +1104,104 @@ class PacManGame {
 
         if (progressBar) {
             progressBar.style.width = progress + '%';
+        }
+    }
+
+    updateMLStatusUI(prediction) {
+        // Update ML Active status
+        const mlActiveEl = document.getElementById('mlActive');
+        if (mlActiveEl) {
+            const isMLActive = prediction.usedML === true;
+            mlActiveEl.textContent = isMLActive ? 'YES' : 'NO';
+            mlActiveEl.style.color = isMLActive ? '#00ff00' : '#ff6600';
+        }
+
+        // Update ML Method
+        const mlMethodEl = document.getElementById('mlMethod');
+        if (mlMethodEl) {
+            if (prediction.mlMethod) {
+                mlMethodEl.textContent = prediction.mlMethod.toUpperCase();
+                // Color code by method
+                switch(prediction.mlMethod) {
+                    case 'ml':
+                        mlMethodEl.style.color = '#00ff00';
+                        break;
+                    case 'hybrid':
+                        mlMethodEl.style.color = '#ffaa00';
+                        break;
+                    case 'heuristic_fallback':
+                        mlMethodEl.style.color = '#ff6600';
+                        break;
+                    default:
+                        mlMethodEl.style.color = '#888';
+                }
+            } else {
+                mlMethodEl.textContent = 'N/A';
+                mlMethodEl.style.color = '#666';
+            }
+        }
+
+        // Update ML Source
+        const mlSourceEl = document.getElementById('mlSource');
+        if (mlSourceEl) {
+            if (prediction.mlSource) {
+                const sourceText = prediction.mlSource === 'ml_feature_based'
+                    ? 'Feature-Based'
+                    : prediction.mlSource === 'similarity_search'
+                    ? 'Similarity Search'
+                    : prediction.mlSource;
+                mlSourceEl.textContent = sourceText;
+                mlSourceEl.style.color = '#00ffff';
+            } else {
+                mlSourceEl.textContent = 'N/A';
+                mlSourceEl.style.color = '#666';
+            }
+        }
+
+        // Update ML Probabilities
+        if (prediction.mlProbabilities) {
+            const probs = prediction.mlProbabilities;
+
+            // UP
+            const upEl = document.getElementById('mlProbUp');
+            if (upEl) {
+                const upProb = (probs.UP || 0) * 100;
+                upEl.textContent = upProb.toFixed(1) + '%';
+                upEl.style.color = upProb > 50 ? '#00ff00' : '#888';
+            }
+
+            // DOWN
+            const downEl = document.getElementById('mlProbDown');
+            if (downEl) {
+                const downProb = (probs.DOWN || 0) * 100;
+                downEl.textContent = downProb.toFixed(1) + '%';
+                downEl.style.color = downProb > 50 ? '#00ff00' : '#888';
+            }
+
+            // LEFT
+            const leftEl = document.getElementById('mlProbLeft');
+            if (leftEl) {
+                const leftProb = (probs.LEFT || 0) * 100;
+                leftEl.textContent = leftProb.toFixed(1) + '%';
+                leftEl.style.color = leftProb > 50 ? '#00ff00' : '#888';
+            }
+
+            // RIGHT
+            const rightEl = document.getElementById('mlProbRight');
+            if (rightEl) {
+                const rightProb = (probs.RIGHT || 0) * 100;
+                rightEl.textContent = rightProb.toFixed(1) + '%';
+                rightEl.style.color = rightProb > 50 ? '#00ff00' : '#888';
+            }
+        } else {
+            // No probabilities available
+            ['mlProbUp', 'mlProbDown', 'mlProbLeft', 'mlProbRight'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = '-';
+                    el.style.color = '#666';
+                }
+            });
         }
     }
 

@@ -157,6 +157,14 @@ class DQNAgent {
                     }
                 }
 
+                // Log ML usage if available
+                if (data.usedML !== undefined) {
+                    console.log(`[ML] Used ML: ${data.usedML}, Method: ${data.method || 'unknown'}`);
+                    if (data.prediction.source) {
+                        console.log(`[ML] Source: ${data.prediction.source}`);
+                    }
+                }
+
                 // Use vectorization prediction (plan was already handled above)
                 console.log(`[Vectorization] Using learned move: ${data.prediction.action}`);
 
@@ -167,7 +175,12 @@ class DQNAgent {
                     decisionSource: 'vectorization',
                     plannedMove: null,
                     overridden: false,
-                    queryStrategy: data.queryStrategy
+                    queryStrategy: data.queryStrategy,
+                    // ML-related properties
+                    usedML: data.usedML || false,
+                    mlMethod: data.method || null,
+                    mlSource: data.prediction.source || null,
+                    mlProbabilities: data.prediction.probabilities || null
                 };
 
                 // Cache the prediction
