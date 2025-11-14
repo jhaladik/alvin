@@ -1,0 +1,17 @@
+{
+  "name": "alvin-pacman-ai",
+  "version": "1.0.0",
+  "description": "Pac-Man with DQN AI and human vectorization on Cloudflare",
+  "main": "worker/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler pages dev frontend"
+  },
+  "keywords": ["pacman", "dqn", "ai", "cloudflare", "vectorization"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

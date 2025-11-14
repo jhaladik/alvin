@@ -1,0 +1,23 @@
+name = "alvin-pacman-ai"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+
+# Cloudflare Workers AI binding for vectorization
+[ai]
+binding = "AI"
+
+# KV namespace for storing game states and vectors
+[[kv_namespaces]]
+binding = "GAME_STATE"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# Vectorize binding for embeddings
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "pacman-moves"
+
+[env.production]
+name = "alvin-pacman-ai"
+
+[env.development]
+name = "alvin-pacman-ai-dev"
