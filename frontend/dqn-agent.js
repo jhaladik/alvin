@@ -28,55 +28,8 @@ class DQNAgent {
     async predictNextMove(gameState) {
         const now = Date.now();
 
-        // === STRATEGY LAYER: Path Planning (Always Check First) ===
-        // Path planning is strategic and should be followed when available
-        let plannedMove = null;
-        if (window.pathPlanner) {
-            plannedMove = window.pathPlanner.peekPlannedMove(gameState);
-        }
-
-        // If we have a plan, do quick validation and use it
-        if (plannedMove) {
-            // Quick safety check: is planned move valid?
-            const nextPos = this.getNextPosition(gameState.playerX, gameState.playerY, plannedMove);
-
-            // Check if move is physically valid
-            const isWall = gameState.walls && gameState.walls.some(w => w.x === nextPos.x && w.y === nextPos.y);
-            const isOutOfBounds = nextPos.x < 0 || nextPos.x >= 20 || nextPos.y < 0 || nextPos.y >= 20;
-
-            // Check if immediate death (ghost at next position)
-            const isImmediateDeath = gameState.ghosts && gameState.ghosts.some(g =>
-                !g.scared && g.x === nextPos.x && g.y === nextPos.y
-            );
-
-            if (!isWall && !isOutOfBounds && !isImmediateDeath) {
-                // Plan is safe! Follow it
-                window.pathPlanner.consumeMove();
-
-                this.previousMoves.push(plannedMove);
-                if (this.previousMoves.length > this.maxHistoryLength) {
-                    this.previousMoves.shift();
-                }
-
-                console.log(`[Path Planning] Following plan: ${plannedMove}`);
-
-                return {
-                    action: plannedMove,
-                    confidence: 0.8,
-                    decisionSource: 'path_planning',
-                    plannedMove: plannedMove,
-                    overridden: false
-                };
-            } else {
-                // Plan is dangerous! Invalidate and fall through to vectorization
-                console.log(`[Path Planning] Plan blocked (wall=${isWall}, bounds=${isOutOfBounds}, death=${isImmediateDeath}), replanning...`);
-                window.pathPlanner.currentPlan = null;
-                plannedMove = null;
-            }
-        }
-
-        // === TACTICAL LAYER: Vectorization/Learning (Heavy Lifting) ===
-        // Only do this if we don't have a valid plan
+        // === PRIMARY LAYER: ML Predictions (Trained Model) ===
+        // Prioritize ML since we have a trained model with 100% accuracy!
 
         // Throttle predictions to avoid overwhelming the API
         if (now - this.lastPredictionTime < this.predictionInterval) {
