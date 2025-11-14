@@ -34,7 +34,41 @@ ml-training/
 
 ## Quick Start
 
-### Step 1: Deploy Data Export Endpoint
+### Option A: Automated NGC CLI (Recommended)
+
+**One-command training with NGC batch jobs:**
+
+**Windows (PowerShell):**
+```powershell
+.\run_training.ps1
+```
+
+**Linux/Mac/Git Bash:**
+```bash
+./run_training.sh
+```
+
+This automatically:
+1. ✓ Checks NGC CLI setup
+2. ✓ Submits batch job to NGC
+3. ✓ Monitors training (15-20 min)
+4. ✓ Downloads trained model
+5. ✓ Cleanup
+
+**Prerequisites:**
+- NGC account: https://ngc.nvidia.com/
+- NGC CLI installed (see [NGC_CLI_SETUP.md](NGC_CLI_SETUP.md))
+- 946 training samples already collected ✓
+
+**Cost:** ~$0.50-2.00 (or free with NGC credits)
+
+---
+
+### Option B: Manual NGC Workspace
+
+If you prefer interactive setup:
+
+**Step 1: Deploy Data Export Endpoint**
 
 The worker now has `/api/export-training-data` endpoint. Deploy it:
 
@@ -43,12 +77,12 @@ cd ..  # Back to project root
 npm run deploy
 ```
 
-### Step 2: Play Games to Generate Data
+**Step 2: Play Games to Generate Data**
 
 Go to https://alvin-pacman-ai.jhaladik.workers.dev and play Pac-Man for a while.
 **Target: 1000+ moves** (more is better)
 
-### Step 3: NGC Setup
+**Step 3: NGC Setup**
 
 1. Log in to https://ngc.nvidia.com/
 2. Go to "Workspaces" → "Create Workspace"
@@ -59,7 +93,7 @@ Go to https://alvin-pacman-ai.jhaladik.workers.dev and play Pac-Man for a while.
 4. Launch workspace
 5. Open JupyterLab terminal
 
-### Step 4: Upload This Directory to NGC
+**Step 4: Upload This Directory to NGC**
 
 In NGC JupyterLab:
 
@@ -72,50 +106,49 @@ cd alvin/ml-training
 pip install -r requirements.txt
 ```
 
-### Step 5: Download Training Data
+**Step 5: Run Quickstart**
 
 ```bash
+python quickstart.py
+```
+
+Or run steps manually:
+
+```bash
+# Download training data
 python data/fetch_training_data.py
-```
 
-This downloads all human gameplay data from Cloudflare KV.
-
-### Step 6: Preprocess Data
-
-```bash
+# Preprocess data
 python preprocessing/feature_extraction.py
-```
 
-Converts game states to 128-dim feature vectors.
-
-### Step 7: Train on GPU
-
-```bash
+# Train on GPU
 python training/train.py
-```
 
-This will:
-- Train for up to 100 epochs
-- Early stopping if no improvement
-- Save best model to `checkpoints/best_model.pth`
-- Log to TensorBoard
-
-Monitor training:
-```bash
-tensorboard --logdir=runs
-```
-
-### Step 8: Export Model
-
-```bash
+# Export model
 python export/to_onnx.py
 ```
 
-Exports to `export/pacman_model.onnx` for deployment.
+**Step 6: Download Model**
 
-### Step 9: Download and Deploy
+Download `export/pacman_model.onnx` from NGC JupyterLab and integrate into your app.
 
-Download `pacman_model.onnx` from NGC and integrate into your app.
+---
+
+### Helper Scripts
+
+**Download results later:**
+```powershell
+# Windows
+.\download_results.ps1
+
+# Linux/Mac
+./download_results.sh
+```
+
+**Verify setup before training:**
+```bash
+python verify_setup.py
+```
 
 ## Feature Engineering
 
