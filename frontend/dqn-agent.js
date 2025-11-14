@@ -28,6 +28,56 @@ class DQNAgent {
     async predictNextMove(gameState) {
         const now = Date.now();
 
+        // === STRATEGY LAYER: Path Planning (Always Check First) ===
+        // Path planning is strategic and should be followed when available
+        let plannedMove = null;
+        if (window.pathPlanner) {
+            plannedMove = window.pathPlanner.peekPlannedMove(gameState);
+        }
+
+        // If we have a plan, do quick validation and use it
+        if (plannedMove) {
+            // Quick safety check: is planned move valid?
+            const nextPos = this.getNextPosition(gameState.playerX, gameState.playerY, plannedMove);
+
+            // Check if move is physically valid
+            const isWall = gameState.walls && gameState.walls.some(w => w.x === nextPos.x && w.y === nextPos.y);
+            const isOutOfBounds = nextPos.x < 0 || nextPos.x >= 20 || nextPos.y < 0 || nextPos.y >= 20;
+
+            // Check if immediate death (ghost at next position)
+            const isImmediateDeath = gameState.ghosts && gameState.ghosts.some(g =>
+                !g.scared && g.x === nextPos.x && g.y === nextPos.y
+            );
+
+            if (!isWall && !isOutOfBounds && !isImmediateDeath) {
+                // Plan is safe! Follow it
+                window.pathPlanner.consumeMove();
+
+                this.previousMoves.push(plannedMove);
+                if (this.previousMoves.length > this.maxHistoryLength) {
+                    this.previousMoves.shift();
+                }
+
+                console.log(`[Path Planning] Following plan: ${plannedMove}`);
+
+                return {
+                    action: plannedMove,
+                    confidence: 0.8,
+                    decisionSource: 'path_planning',
+                    plannedMove: plannedMove,
+                    overridden: false
+                };
+            } else {
+                // Plan is dangerous! Invalidate and fall through to vectorization
+                console.log(`[Path Planning] Plan blocked (wall=${isWall}, bounds=${isOutOfBounds}, death=${isImmediateDeath}), replanning...`);
+                window.pathPlanner.currentPlan = null;
+                plannedMove = null;
+            }
+        }
+
+        // === TACTICAL LAYER: Vectorization/Learning (Heavy Lifting) ===
+        // Only do this if we don't have a valid plan
+
         // Throttle predictions to avoid overwhelming the API
         if (now - this.lastPredictionTime < this.predictionInterval) {
             return this.getLastPrediction();
@@ -50,13 +100,6 @@ class DQNAgent {
             }
 
             return randomPrediction;
-        }
-
-        // === PATH PLANNING LAYER (Strategic) ===
-        // Peek at planned move (non-destructive)
-        let plannedMove = null;
-        if (window.pathPlanner) {
-            plannedMove = window.pathPlanner.peekPlannedMove(gameState);
         }
 
         try {
@@ -114,44 +157,17 @@ class DQNAgent {
                     }
                 }
 
-                // === HYBRID DECISION: Path Planning + Vectorization ===
-                let finalAction = data.prediction.action;
-                let decisionSource = 'vectorization';
-
-                // If we have a planned move, validate it with vectorization
-                if (plannedMove && data.prediction.allScores) {
-                    const plannedScore = data.prediction.allScores[plannedMove];
-                    const bestScore = Math.max(...Object.values(data.prediction.allScores));
-
-                    console.log(`[Hybrid AI] Planned: ${plannedMove} (score: ${plannedScore?.toFixed(1)}), Best: ${data.prediction.action} (score: ${bestScore.toFixed(1)})`);
-
-                    // Use planned move if it's reasonably safe (score > -5)
-                    if (plannedScore !== undefined && plannedScore > -5) {
-                        finalAction = plannedMove;
-                        decisionSource = 'path_planning';
-                        console.log(`[Hybrid AI] Following plan: ${plannedMove}`);
-
-                        // Consume the planned move (advance plan)
-                        if (window.pathPlanner) {
-                            window.pathPlanner.consumeMove();
-                        }
-                    } else {
-                        console.log(`[Hybrid AI] Plan too dangerous, using vectorization: ${data.prediction.action}`);
-                        // Path is dangerous, invalidate plan
-                        if (window.pathPlanner) {
-                            window.pathPlanner.currentPlan = null;
-                        }
-                    }
-                }
+                // Use vectorization prediction (plan was already handled above)
+                console.log(`[Vectorization] Using learned move: ${data.prediction.action}`);
 
                 // Create final prediction
                 const finalPrediction = {
                     ...data.prediction,
-                    action: finalAction,
-                    decisionSource: decisionSource,
-                    plannedMove: plannedMove,
-                    overridden: plannedMove && finalAction !== plannedMove,
-                    queryStrategy: data.queryStrategy // Show which filter was used
+                    action: data.prediction.action,
+                    decisionSource: 'vectorization',
+                    plannedMove: null,
+                    overridden: false,
+                    queryStrategy: data.queryStrategy
                 };
 
                 // Cache the prediction
