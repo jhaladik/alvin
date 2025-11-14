@@ -463,8 +463,19 @@ async function predictNextMove(gameState, previousMoves, vector, similarStates, 
 function calculateActionScore(state, action, previousMoves) {
   let score = 0;
 
-  // Avoid ghosts (negative reward)
   const nextPos = getNextPosition(state.playerX, state.playerY, action);
+
+  // 1. CRITICAL: Avoid walls (impossible moves)
+  if (state.walls && state.walls.some(w => w.x === nextPos.x && w.y === nextPos.y)) {
+    return -10000; // Impossible move - strongly penalize
+  }
+
+  // 2. Check bounds
+  if (nextPos.x < 0 || nextPos.x >= 20 || nextPos.y < 0 || nextPos.y >= 20) {
+    return -10000; // Out of bounds
+  }
+
+  // 3. Avoid ghosts (negative reward)
   for (const ghost of state.ghosts) {
     const distance = Math.abs(nextPos.x - ghost.x) + Math.abs(nextPos.y - ghost.y);
     if (distance < 3) {
@@ -472,10 +483,17 @@ function calculateActionScore(state, action, previousMoves) {
     }
   }
 
-  // Seek pellets (positive reward)
-  score += Math.random() * 2; // Simplified - would check actual pellet positions
+  // 4. Seek pellets (positive reward)
+  // Check if there's a pellet at next position
+  if (state.pellets && state.pellets.some(p => p.x === nextPos.x && p.y === nextPos.y)) {
+    score += 10; // Pellet at this position
+  } else if (state.powerPellets && state.powerPellets.some(p => p.x === nextPos.x && p.y === nextPos.y)) {
+    score += 50; // Power pellet at this position
+  } else {
+    score += Math.random() * 2; // Small exploration bonus
+  }
 
-  // Avoid repeating recent moves (exploration)
+  // 5. Avoid repeating recent moves (exploration)
   if (previousMoves && previousMoves.slice(-3).includes(action)) {
     score -= 1;
   }

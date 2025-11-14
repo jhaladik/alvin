@@ -207,6 +207,20 @@ class DQNAgent {
                 action
             );
 
+            // 0. CRITICAL: Check walls first (impossible moves)
+            if (gameState.walls && gameState.walls.some(w => w.x === nextPos.x && w.y === nextPos.y)) {
+                score = -10000; // Impossible move - wall
+                scores[action] = score;
+                continue;
+            }
+
+            // 0b. Check bounds
+            if (nextPos.x < 0 || nextPos.x >= 20 || nextPos.y < 0 || nextPos.y >= 20) {
+                score = -10000; // Out of bounds
+                scores[action] = score;
+                continue;
+            }
+
             // 1. Ghost avoidance (highest priority)
             let minGhostDistance = Infinity;
             for (const ghost of gameState.ghosts) {
@@ -225,16 +239,23 @@ class DQNAgent {
                 }
             }
 
-            // 2. Avoid recent moves (exploration)
+            // 2. Seek pellets (check if pellet at next position)
+            if (gameState.pellets && gameState.pellets.some(p => p.x === nextPos.x && p.y === nextPos.y)) {
+                score += 15; // Pellet at this position
+            } else if (gameState.powerPellets && gameState.powerPellets.some(p => p.x === nextPos.x && p.y === nextPos.y)) {
+                score += 60; // Power pellet at this position
+            }
+
+            // 3. Avoid recent moves (exploration)
             if (this.previousMoves.slice(-3).includes(action)) {
                 score -= 10;
             }
 
-            // 3. Prefer center positions (more options)
+            // 4. Prefer center positions (more options)
             const distanceFromCenter = Math.abs(nextPos.x - 10) + Math.abs(nextPos.y - 10);
             score -= distanceFromCenter * 0.5;
 
-            // 4. Add randomness for exploration
+            // 5. Add randomness for exploration
             score += Math.random() * 5;
 
             scores[action] = score;
