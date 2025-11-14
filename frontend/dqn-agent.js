@@ -169,9 +169,11 @@ class DQNAgent {
                     window.gameStats.learningMetrics.totalPredictions++;
                     window.gameStats.learningMetrics.vectorizedStates =
                         this.predictionCache.size;
-                    // Track how many states we're learning from
-                    window.gameStats.learningMetrics.uniqueStatesLearned =
-                        data.similarStatesFound || 0;
+                    // Track unique states from training data (vectorized human moves)
+                    if (window.vectorization) {
+                        window.gameStats.learningMetrics.uniqueStatesLearned =
+                            window.vectorization.countUniqueStates();
+                    }
                 }
 
                 return finalPrediction;

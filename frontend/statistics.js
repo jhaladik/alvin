@@ -115,22 +115,23 @@ class GameStatistics {
             this.learningMetrics.failedPredictions++;
         }
 
-        // Update accuracy
-        const total = this.learningMetrics.totalPredictions;
+        // Update accuracy - use actual evaluations count, not totalPredictions
+        const totalEvaluations = this.learningMetrics.successfulPredictions +
+                                this.learningMetrics.failedPredictions;
         const successful = this.learningMetrics.successfulPredictions;
-        this.learningMetrics.predictionAccuracy = total > 0 ? (successful / total) * 100 : 0;
+        this.learningMetrics.predictionAccuracy = totalEvaluations > 0 ? (successful / totalEvaluations) * 100 : 0;
 
-        // Update average confidence
+        // Update average confidence - use evaluations count
         const avgConf = this.learningMetrics.averageConfidence;
-        this.learningMetrics.averageConfidence =
-            (avgConf * (total - 1) + confidence) / total;
+        this.learningMetrics.averageConfidence = totalEvaluations > 0 ?
+            (avgConf * (totalEvaluations - 1) + confidence) / totalEvaluations : confidence;
 
         // Track accuracy over time
-        if (total % 10 === 0) {
+        if (totalEvaluations % 10 === 0) {
             this.learningMetrics.accuracyHistory.push({
                 timestamp: Date.now(),
                 accuracy: this.learningMetrics.predictionAccuracy,
-                predictions: total
+                predictions: totalEvaluations
             });
         }
     }
