@@ -81,10 +81,10 @@ class PacManGame {
                 startY: 10
             },
             ghosts: [
-                { x: 5, y: 5, color: '#ff0000', direction: 'RIGHT', startX: 5, startY: 5 },
-                { x: 15, y: 5, color: '#ffb8ff', direction: 'LEFT', startX: 15, startY: 5 },
-                { x: 5, y: 15, color: '#00ffff', direction: 'UP', startX: 5, startY: 15 },
-                { x: 15, y: 15, color: '#ffb852', direction: 'DOWN', startX: 15, startY: 15 }
+                { x: 5, y: 5, color: '#ff0000', direction: 'RIGHT', startX: 5, startY: 5, dead: false, respawnTimer: 0 },
+                { x: 15, y: 5, color: '#ffb8ff', direction: 'LEFT', startX: 15, startY: 5, dead: false, respawnTimer: 0 },
+                { x: 5, y: 15, color: '#00ffff', direction: 'UP', startX: 5, startY: 15, dead: false, respawnTimer: 0 },
+                { x: 15, y: 15, color: '#ffb852', direction: 'DOWN', startX: 15, startY: 15, dead: false, respawnTimer: 0 }
             ],
             pellets: pellets,
             powerPellets: [
@@ -427,6 +427,15 @@ class PacManGame {
 
     updateGhosts(state) {
         state.ghosts.forEach(ghost => {
+            // Handle ghost respawn timer
+            if (ghost.dead) {
+                ghost.respawnTimer--;
+                if (ghost.respawnTimer <= 0) {
+                    ghost.dead = false;
+                }
+                return; // Skip movement for dead ghosts
+            }
+
             // Simple AI for ghosts - random movement
             if (Math.random() < 0.1) {
                 const directions = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
@@ -462,7 +471,7 @@ class PacManGame {
             if (pellet.x === player.x && pellet.y === player.y) {
                 state.score += 50;
                 state.powerMode = true;
-                state.powerModeTimer = 50;
+                state.powerModeTimer = 360; // 6 seconds at 60 FPS
                 return false;
             }
             return true;
@@ -471,12 +480,17 @@ class PacManGame {
         // Check ghost collisions (only if not invincible)
         if (!state.invincible) {
             for (const ghost of state.ghosts) {
+                // Skip dead ghosts
+                if (ghost.dead) continue;
+
                 if (ghost.x === player.x && ghost.y === player.y) {
                     if (state.powerMode) {
                         // Eat ghost
                         state.score += 200;
                         state.ghostsEaten++;
-                        // Respawn ghost to starting position
+                        // Mark ghost as dead and set respawn timer (3 seconds = 180 frames)
+                        ghost.dead = true;
+                        ghost.respawnTimer = 180;
                         ghost.x = ghost.startX;
                         ghost.y = ghost.startY;
                     } else {
@@ -524,15 +538,17 @@ class PacManGame {
             state.player.y = state.player.startY;
             state.player.direction = 'RIGHT';
 
-            // Respawn ghosts to starting positions
+            // Respawn ghosts to starting positions and reset their state
             state.ghosts.forEach(ghost => {
                 ghost.x = ghost.startX;
                 ghost.y = ghost.startY;
+                ghost.dead = false;
+                ghost.respawnTimer = 0;
             });
 
-            // Grant invincibility for 2 seconds (20 frames at 10 FPS)
+            // Grant invincibility for 3 seconds (180 frames at 60 FPS)
             state.invincible = true;
-            state.invincibleTimer = 20;
+            state.invincibleTimer = 180;
 
             // Clear power mode on death
             state.powerMode = false;
@@ -783,6 +799,9 @@ class PacManGame {
 
         // Draw ghosts
         state.ghosts.forEach(ghost => {
+            // Don't draw dead ghosts (they're being eaten / respawning)
+            if (ghost.dead) return;
+
             ctx.fillStyle = state.powerMode ? '#0000ff' : ghost.color;
             this.drawGhost(
                 ctx,
