@@ -27,6 +27,8 @@ export default {
       return handleStoreMove(request, env, corsHeaders);
     } else if (url.pathname === '/api/get-similar-moves') {
       return handleSimilarMoves(request, env, corsHeaders);
+    } else if (url.pathname === '/api/export-training-data') {
+      return handleExportTrainingData(request, env, corsHeaders);
     }
 
     // Static file serving (injected during build)
@@ -334,6 +336,56 @@ async function handleSimilarMoves(request, env, corsHeaders) {
     return new Response(JSON.stringify({
       success: true,
       similarMoves
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+/**
+ * Export all training data for ML training
+ */
+async function handleExportTrainingData(request, env, corsHeaders) {
+  try {
+    const trainingData = [];
+
+    // Get all stored moves from KV
+    if (env.GAME_STATE) {
+      const list = await env.GAME_STATE.list();
+
+      for (const key of list.keys) {
+        try {
+          const data = await env.GAME_STATE.get(key.name, 'json');
+          if (data) {
+            trainingData.push({
+              id: key.name,
+              gameState: data.gameState,
+              action: data.action,
+              reward: data.reward,
+              vector: data.vector,
+              metadata: data.metadata,
+              timestamp: key.metadata?.timestamp || Date.now()
+            });
+          }
+        } catch (e) {
+          console.error(`Error reading ${key.name}:`, e);
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      count: trainingData.length,
+      data: trainingData,
+      exportDate: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
