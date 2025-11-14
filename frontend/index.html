@@ -15,12 +15,44 @@
             background: #000;
             color: #fff;
             font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            display: flex;
+            min-height: 100vh;
+            gap: 0;
+        }
+
+        .left-sidebar {
+            width: 300px;
+            background: #0a0a0a;
+            border-right: 2px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+
+        .center-game {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            justify-content: flex-start;
             padding: 20px;
+            overflow-y: auto;
+        }
+
+        .right-sidebar {
+            width: 350px;
+            background: #0a0a0a;
+            border-left: 2px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 100vh;
         }
 
         h1 {
@@ -72,11 +104,25 @@
         }
 
         .stats {
+            background: transparent;
+            border: none;
+            padding: 0;
+            width: 100%;
+        }
+
+        .section {
             background: #1a1a1a;
             border: 2px solid #333;
             border-radius: 8px;
             padding: 15px;
-            min-width: 300px;
+            margin-bottom: 15px;
+        }
+
+        .section h3 {
+            margin: 0 0 10px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+            font-size: 14px;
         }
 
         .stat-row {
@@ -141,71 +187,337 @@
         .legend span {
             margin: 0 10px;
         }
+
+        .game-status {
+            font-weight: bold;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .status-playing {
+            color: #00ff00;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .status-paused {
+            color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .status-gameover {
+            color: #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+            animation: blink 1s infinite;
+        }
+
+        .status-won {
+            color: #00ff00;
+            background: rgba(0, 255, 0, 0.2);
+            animation: pulse 1s infinite;
+        }
+
+        .status-invincible {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
+            animation: blink 0.3s infinite;
+        }
+
+        .status-power {
+            color: #00ffff;
+            background: rgba(0, 255, 255, 0.2);
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .learning-panel, .comparison-panel {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 5px;
+        }
+
+        .stat-mini {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin: 5px 0;
+            color: #aaa;
+        }
+
+        .stat-mini strong {
+            color: #0f0;
+            font-size: 12px;
+        }
+
+        .stat-mini.winner {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+            justify-content: center;
+            font-weight: bold;
+            color: #ffff00;
+            font-size: 13px;
+        }
+
+        .training-control {
+            margin: 10px 0;
+        }
+
+        .training-control label {
+            display: block;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .training-control input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .training-control .value {
+            font-size: 12px;
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        .reward-item {
+            font-size: 10px;
+            padding: 5px;
+            margin: 3px 0;
+            background: #222;
+            border-left: 3px solid;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .reward-item.positive { border-color: #00ff00; }
+        .reward-item.negative { border-color: #ff0000; }
+        .reward-item.neutral { border-color: #888; }
+
+        .decision-log {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 10px;
+            background: #111;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .decision-item {
+            padding: 3px 5px;
+            margin: 2px 0;
+            background: #1a1a1a;
+            border-left: 2px solid #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00ffff);
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
-    <h1>🎮 ALVIN - AI PAC-MAN</h1>
-    <div class="subtitle">Human vs DQN Agent with Prefrontal Prediction | Powered by Cloudflare AI</div>
+    <div class="main-container">
+        <!-- LEFT SIDEBAR: Player Stats -->
+        <div class="left-sidebar">
+            <h2 style="text-align: center; margin: 0 0 20px; color: #ffff00;">📊 Game Stats</h2>
 
-    <div class="game-container">
-        <div class="game-panel human-panel">
-            <div class="panel-title">👤 HUMAN PLAYER</div>
-            <canvas id="humanCanvas" width="400" height="400"></canvas>
-        </div>
-
-        <div class="game-panel ai-panel">
-            <div class="panel-title">🤖 AI AVATAR (DQN)</div>
-            <canvas id="aiCanvas" width="400" height="400"></canvas>
-        </div>
-    </div>
-
-    <div class="stats">
-        <div class="stat-row">
-            <span class="stat-label">Human Score:</span>
-            <span class="stat-value" id="humanScore">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">AI Score:</span>
-            <span class="stat-value" id="aiScore">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">Moves Vectorized:</span>
-            <span class="stat-value" id="vectorizedMoves">0</span>
-        </div>
-        <div class="stat-row">
-            <span class="stat-label">AI Confidence:</span>
-            <span class="stat-value" id="aiConfidence">0%</span>
-        </div>
-
-        <div class="ai-status">
-            <div class="stat-row">
-                <span class="stat-label">AI Next Move:</span>
-                <span class="ai-prediction" id="aiNextMove">-</span>
+            <div class="section">
+                <h3 style="color: #ffff00;">👤 Human Player</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Status:</span>
+                    <span class="game-status" id="humanStatus">PLAYING</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Score:</span>
+                    <span class="stat-value" id="humanScore">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Lives:</span>
+                    <span class="stat-value" id="humanLives">3</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Level:</span>
+                    <span class="stat-value" id="humanLevel">1</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Pellets Left:</span>
+                    <span class="stat-value" id="humanPellets">0</span>
+                </div>
             </div>
-            <div class="stat-row">
-                <span class="stat-label">Prediction Mode:</span>
-                <span class="ai-prediction">Prefrontal Cortex Active</span>
+
+            <div class="section">
+                <h3 style="color: #ff00ff;">🤖 AI Avatar</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Status:</span>
+                    <span class="game-status" id="aiStatus">PLAYING</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Score:</span>
+                    <span class="stat-value" id="aiScore">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Lives:</span>
+                    <span class="stat-value" id="aiLives">3</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Level:</span>
+                    <span class="stat-value" id="aiLevel">1</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Pellets Left:</span>
+                    <span class="stat-value" id="aiPellets">0</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #00ff00;">⚖️ Comparison</h3>
+                <div id="comparisonMetrics" class="comparison-panel">
+                    Loading...
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="game.reset()">Reset Game</button>
+                <button onclick="game.toggleAI()">Toggle AI</button>
             </div>
         </div>
 
-        <div style="text-align: center; margin-top: 15px;">
-            <button onclick="game.reset()">Reset Game</button>
-            <button onclick="game.toggleAI()">Toggle AI</button>
+        <!-- CENTER: Game Area -->
+        <div class="center-game">
+            <h1 style="margin: 20px 0 10px;">🎮 ALVIN - AI PAC-MAN</h1>
+            <div class="subtitle" style="margin-bottom: 20px;">Human vs DQN Agent with Prefrontal Prediction</div>
+
+            <div class="game-container">
+                <div class="game-panel human-panel">
+                    <div class="panel-title">👤 HUMAN PLAYER</div>
+                    <canvas id="humanCanvas" width="400" height="400"></canvas>
+                </div>
+
+                <div class="game-panel ai-panel">
+                    <div class="panel-title">🤖 AI AVATAR (DQN)</div>
+                    <canvas id="aiCanvas" width="400" height="400"></canvas>
+                </div>
+            </div>
+
+            <div class="controls">
+                <p>🎮 Use ARROW KEYS or WASD to control Pac-Man</p>
+                <p>Press SPACE or ESC to pause/resume</p>
+                <p>Your moves are vectorized in real-time and used to train the AI avatar</p>
+            </div>
+
+            <div class="legend">
+                <span>🟡 Pac-Man</span>
+                <span>👻 Ghosts</span>
+                <span>⚪ Pellets</span>
+                <span>🔵 Power Pellet</span>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR: AI Training Details -->
+        <div class="right-sidebar">
+            <h2 style="text-align: center; margin: 0 0 20px; color: #00ffff;">🧠 AI Training</h2>
+
+            <div class="section">
+                <h3 style="color: #00ffff;">📊 Learning Metrics</h3>
+                <div id="learningMetrics" class="learning-panel">
+                    Loading...
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #ffaa00;">⚙️ Training Controls</h3>
+                <div class="training-control">
+                    <label>Exploration Rate: <span class="value" id="explorationValue">20%</span></label>
+                    <input type="range" id="explorationRate" min="0" max="100" value="20"
+                           onchange="window.updateExplorationRate(this.value)">
+                    <small style="color: #666;">Higher = more random exploration</small>
+                </div>
+                <div class="training-control">
+                    <label>Prediction Speed: <span class="value" id="speedValue">200ms</span></label>
+                    <input type="range" id="predictionSpeed" min="50" max="500" value="200" step="50"
+                           onchange="window.updatePredictionSpeed(this.value)">
+                    <small style="color: #666;">Lower = faster AI decisions</small>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #ff00ff;">🎯 Current Prediction</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Next Move:</span>
+                    <span class="ai-prediction" id="aiNextMove">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Confidence:</span>
+                    <span class="ai-prediction" id="aiConfidence">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="confidenceBar" style="width: 0%"></div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Mode:</span>
+                    <span class="ai-prediction" id="predictionMode">Exploit</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Vectorized:</span>
+                    <span class="ai-prediction" id="vectorizedMoves">0</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #00ff00;">💰 Recent Rewards</h3>
+                <div id="recentRewards" class="decision-log">
+                    <small style="color: #666;">No rewards yet...</small>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #ffff00;">🎲 Recent Decisions</h3>
+                <div id="recentDecisions" class="decision-log">
+                    <small style="color: #666;">No decisions yet...</small>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #ff6600;">🔬 Training Info</h3>
+                <div style="font-size: 11px; line-height: 1.6; color: #aaa;">
+                    <p><strong style="color: #0f0;">Vectorization:</strong> Game states are converted to 768-dimensional vectors using Cloudflare's BGE model.</p>
+                    <p><strong style="color: #0f0;">Similarity Search:</strong> AI queries past states to find similar situations using cosine similarity.</p>
+                    <p><strong style="color: #0f0;">Reward Signals:</strong> 6 components - score, ghost avoidance, progress, positioning, survival, exploration.</p>
+                    <p><strong style="color: #0f0;">Learning:</strong> AI improves by matching actions to positive rewards in similar states.</p>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="window.getStats()" style="background: #222; width: 100%;">📊 View Full Stats</button>
+                <button onclick="window.exportStats()" style="background: #226; width: 100%; margin-top: 5px;">💾 Export Data</button>
+                <button onclick="window.clearStats()" style="background: #442; width: 100%; margin-top: 5px;">🗑️ Clear Stats</button>
+            </div>
         </div>
     </div>
 
-    <div class="controls">
-        <p>🎮 Use ARROW KEYS to control Pac-Man</p>
-        <p>Your moves are vectorized in real-time and used to train the AI avatar</p>
-    </div>
-
-    <div class="legend">
-        <span>🟡 Pac-Man</span>
-        <span>👻 Ghosts</span>
-        <span>⚪ Pellets</span>
-        <span>🔵 Power Pellet</span>
-    </div>
-
+    <script src="statistics.js"></script>
     <script src="game.js"></script>
     <script src="dqn-agent.js"></script>
     <script src="vectorization.js"></script>

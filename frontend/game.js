@@ -29,45 +29,102 @@ class PacManGame {
         this.moveCount = 0;
         this.lastMoveTime = Date.now();
 
+        // Game state management
+        this.humanState.gameState = 'playing'; // playing, paused, gameover, won
+        this.aiState.gameState = 'playing';
+        this.humanState.invincible = false;
+        this.aiState.invincible = false;
+        this.humanState.invincibleTimer = 0;
+        this.aiState.invincibleTimer = 0;
+
+        // Speed settings
+        this.moveSpeed = 150; // ms per move (lower = faster)
+        this.ghostSpeed = 200;
+        this.lastGhostMoveTime = Date.now();
+
         // Initialize DQN agent and vectorization
         if (window.dqnAgent) {
             window.dqnAgent.reset();
         }
+
+        // Reset statistics for new game
+        if (window.gameStats) {
+            window.gameStats.currentGame = {
+                humanStartTime: Date.now(),
+                aiStartTime: Date.now(),
+                humanMoves: 0,
+                aiMoves: 0,
+                humanPredictions: [],
+                aiPredictions: []
+            };
+        }
+
+        this.updateUI();
+        this.updateStatsUI();
     }
 
     createInitialState() {
+        const walls = this.generateWalls();
+        const pellets = this.generatePellets(walls);
+
         return {
             player: {
                 x: 10,
                 y: 10,
                 direction: 'RIGHT',
-                mouthOpen: true
+                mouthOpen: true,
+                startX: 10,
+                startY: 10
             },
             ghosts: [
-                { x: 5, y: 5, color: '#ff0000', direction: 'RIGHT' },
-                { x: 15, y: 5, color: '#ffb8ff', direction: 'LEFT' },
-                { x: 5, y: 15, color: '#00ffff', direction: 'UP' },
-                { x: 15, y: 15, color: '#ffb852', direction: 'DOWN' }
+                { x: 5, y: 5, color: '#ff0000', direction: 'RIGHT', startX: 5, startY: 5 },
+                { x: 15, y: 5, color: '#ffb8ff', direction: 'LEFT', startX: 15, startY: 5 },
+                { x: 5, y: 15, color: '#00ffff', direction: 'UP', startX: 5, startY: 15 },
+                { x: 15, y: 15, color: '#ffb852', direction: 'DOWN', startX: 15, startY: 15 }
             ],
-            pellets: this.generatePellets(),
+            pellets: pellets,
             powerPellets: [
                 { x: 2, y: 2 },
                 { x: 17, y: 2 },
                 { x: 2, y: 17 },
                 { x: 17, y: 17 }
             ],
-            walls: this.generateWalls(),
+            walls: walls,
             score: 0,
             lives: 3,
             powerMode: false,
-            powerModeTimer: 0
+            powerModeTimer: 0,
+            totalPellets: pellets.length + 4, // including power pellets
+            level: 1,
+            ghostsEaten: 0
         };
     }
 
-    generatePellets() {
+    generatePellets(walls) {
         const pellets = [];
+        const powerPelletPositions = [
+            { x: 2, y: 2 }, { x: 17, y: 2 },
+            { x: 2, y: 17 }, { x: 17, y: 17 }
+        ];
+
         for (let x = 0; x < this.gridSize; x++) {
             for (let y = 0; y < this.gridSize; y++) {
+                // Don't place on walls
+                const isWall = walls.some(w => w.x === x && w.y === y);
+                if (isWall) continue;
+
+                // Don't place on power pellet positions
+                const isPowerPellet = powerPelletPositions.some(p => p.x === x && p.y === y);
+                if (isPowerPellet) continue;
+
+                // Don't place on starting positions
+                if ((x === 10 && y === 10) ||
+                    (x === 5 && y === 5) || (x === 15 && y === 5) ||
+                    (x === 5 && y === 15) || (x === 15 && y === 15)) {
+                    continue;
+                }
+
+                // 70% chance to place a pellet
                 if (Math.random() > 0.3) {
                     pellets.push({ x, y });
                 }
@@ -92,19 +149,39 @@ class PacManGame {
     setupControls() {
         document.addEventListener('keydown', (e) => {
             const key = e.key;
-            let newDirection = null;
 
+            // Pause/Resume
+            if (key === ' ' || key === 'Escape') {
+                e.preventDefault();
+                this.togglePause();
+                return;
+            }
+
+            // Only accept movement if game is playing
+            if (this.humanState.gameState !== 'playing') {
+                return;
+            }
+
+            let newDirection = null;
             switch (key) {
                 case 'ArrowUp':
+                case 'w':
+                case 'W':
                     newDirection = 'UP';
                     break;
                 case 'ArrowDown':
+                case 's':
+                case 'S':
                     newDirection = 'DOWN';
                     break;
                 case 'ArrowLeft':
+                case 'a':
+                case 'A':
                     newDirection = 'LEFT';
                     break;
                 case 'ArrowRight':
+                case 'd':
+                case 'D':
                     newDirection = 'RIGHT';
                     break;
             }
@@ -117,6 +194,17 @@ class PacManGame {
                 this.vectorizeMove(newDirection);
             }
         });
+    }
+
+    togglePause() {
+        if (this.humanState.gameState === 'playing') {
+            this.humanState.gameState = 'paused';
+            this.aiState.gameState = 'paused';
+        } else if (this.humanState.gameState === 'paused') {
+            this.humanState.gameState = 'playing';
+            this.aiState.gameState = 'playing';
+        }
+        this.updateUI();
     }
 
     async vectorizeMove(direction) {
@@ -143,23 +231,30 @@ class PacManGame {
 
     update() {
         const now = Date.now();
-        const deltaTime = now - this.lastMoveTime;
 
-        // Update at 10 FPS for movement
-        if (deltaTime > 100) {
+        // Don't update if paused
+        if (this.humanState.gameState === 'paused') {
+            return;
+        }
+
+        // Player movement update
+        const deltaTime = now - this.lastMoveTime;
+        if (deltaTime > this.moveSpeed) {
             this.lastMoveTime = now;
 
             // Update human player
-            this.updatePlayer(this.humanState);
-            this.updateGhosts(this.humanState);
-            this.checkCollisions(this.humanState);
+            if (this.humanState.gameState === 'playing') {
+                this.updatePlayer(this.humanState);
+                this.checkCollisions(this.humanState);
+                this.checkWinCondition(this.humanState);
+            }
 
             // Update AI avatar
-            if (this.aiEnabled) {
+            if (this.aiEnabled && this.aiState.gameState === 'playing') {
                 this.updateAI();
                 this.updatePlayer(this.aiState);
-                this.updateGhosts(this.aiState);
                 this.checkCollisions(this.aiState);
+                this.checkWinCondition(this.aiState);
             }
 
             // Toggle mouth animation
@@ -167,19 +262,58 @@ class PacManGame {
             this.aiState.player.mouthOpen = !this.aiState.player.mouthOpen;
         }
 
-        // Update power mode timer
-        if (this.humanState.powerMode) {
-            this.humanState.powerModeTimer--;
-            if (this.humanState.powerModeTimer <= 0) {
-                this.humanState.powerMode = false;
+        // Ghost movement update (slower than player)
+        const ghostDeltaTime = now - this.lastGhostMoveTime;
+        if (ghostDeltaTime > this.ghostSpeed) {
+            this.lastGhostMoveTime = now;
+
+            if (this.humanState.gameState === 'playing') {
+                this.updateGhosts(this.humanState);
+            }
+            if (this.aiEnabled && this.aiState.gameState === 'playing') {
+                this.updateGhosts(this.aiState);
             }
         }
 
-        if (this.aiState.powerMode) {
-            this.aiState.powerModeTimer--;
-            if (this.aiState.powerModeTimer <= 0) {
-                this.aiState.powerMode = false;
+        // Update power mode timer
+        this.updatePowerMode(this.humanState);
+        this.updatePowerMode(this.aiState);
+
+        // Update invincibility timer
+        this.updateInvincibility(this.humanState);
+        this.updateInvincibility(this.aiState);
+    }
+
+    updatePowerMode(state) {
+        if (state.powerMode) {
+            state.powerModeTimer--;
+            if (state.powerModeTimer <= 0) {
+                state.powerMode = false;
             }
+        }
+    }
+
+    updateInvincibility(state) {
+        if (state.invincible) {
+            state.invincibleTimer--;
+            if (state.invincibleTimer <= 0) {
+                state.invincible = false;
+            }
+        }
+    }
+
+    checkWinCondition(state) {
+        const remainingPellets = state.pellets.length + state.powerPellets.length;
+        if (remainingPellets === 0 && state.gameState === 'playing') {
+            state.gameState = 'won';
+
+            // Record win
+            if (window.gameStats) {
+                const player = state === this.humanState ? 'human' : 'ai';
+                window.gameStats.endGame(player, state);
+            }
+
+            this.updateUI();
         }
     }
 
@@ -195,8 +329,32 @@ class PacManGame {
 
                 // Update UI with AI's next move
                 document.getElementById('aiNextMove').textContent = prediction.action;
-                document.getElementById('aiConfidence').textContent =
-                    Math.round(prediction.confidence * 100) + '%';
+                const confidence = Math.round(prediction.confidence * 100);
+                document.getElementById('aiConfidence').textContent = confidence + '%';
+
+                // Update confidence bar
+                const confidenceBar = document.getElementById('confidenceBar');
+                if (confidenceBar) {
+                    confidenceBar.style.width = confidence + '%';
+                }
+
+                // Update prediction mode
+                const modeEl = document.getElementById('predictionMode');
+                if (modeEl) {
+                    modeEl.textContent = prediction.explored ? 'Explore' :
+                                        prediction.cached ? 'Cached' :
+                                        prediction.fallback ? 'Fallback' : 'Exploit';
+                }
+
+                // Track decision
+                if (window.gameStats) {
+                    window.gameStats.currentGame.aiPredictions.push({
+                        timestamp: Date.now(),
+                        action: prediction.action,
+                        outcome: 'neutral',
+                        reward: 0
+                    });
+                }
             }
         }
     }
@@ -259,29 +417,75 @@ class PacManGame {
             return true;
         });
 
-        // Check ghost collisions
-        state.ghosts.forEach(ghost => {
-            if (ghost.x === player.x && ghost.y === player.y) {
-                if (state.powerMode) {
-                    state.score += 200;
-                    // Respawn ghost
-                    ghost.x = Math.floor(Math.random() * this.gridSize);
-                    ghost.y = Math.floor(Math.random() * this.gridSize);
-                } else {
-                    state.lives--;
-                    if (state.lives <= 0) {
-                        // Game over
-                        console.log('Game Over!');
+        // Check ghost collisions (only if not invincible)
+        if (!state.invincible) {
+            for (const ghost of state.ghosts) {
+                if (ghost.x === player.x && ghost.y === player.y) {
+                    if (state.powerMode) {
+                        // Eat ghost
+                        state.score += 200;
+                        state.ghostsEaten++;
+                        // Respawn ghost to starting position
+                        ghost.x = ghost.startX;
+                        ghost.y = ghost.startY;
+                    } else {
+                        // Die
+                        this.handleDeath(state);
+                        break; // Only die once per frame
                     }
                 }
             }
-        });
+        }
 
-        // Update score displays
-        if (state === this.humanState) {
-            document.getElementById('humanScore').textContent = state.score;
+        // Update UI
+        this.updateUI();
+    }
+
+    handleDeath(state) {
+        state.lives--;
+
+        // Track death in statistics
+        if (window.gameStats) {
+            const player = state === this.humanState ? 'human' : 'ai';
+            window.gameStats.trackMove(player, 'death', 'death');
+
+            if (player === 'human') {
+                window.gameStats.humanStats.totalDeaths++;
+            } else {
+                window.gameStats.aiStats.totalDeaths++;
+            }
+        }
+
+        if (state.lives <= 0) {
+            // Game Over
+            state.gameState = 'gameover';
+
+            // Record game end
+            if (window.gameStats) {
+                const player = state === this.humanState ? 'human' : 'ai';
+                window.gameStats.endGame(player, state);
+            }
+
+            this.updateUI();
         } else {
-            document.getElementById('aiScore').textContent = state.score;
+            // Respawn player
+            state.player.x = state.player.startX;
+            state.player.y = state.player.startY;
+            state.player.direction = 'RIGHT';
+
+            // Respawn ghosts to starting positions
+            state.ghosts.forEach(ghost => {
+                ghost.x = ghost.startX;
+                ghost.y = ghost.startY;
+            });
+
+            // Grant invincibility for 2 seconds (20 frames at 10 FPS)
+            state.invincible = true;
+            state.invincibleTimer = 20;
+
+            // Clear power mode on death
+            state.powerMode = false;
+            state.powerModeTimer = 0;
         }
     }
 
@@ -306,6 +510,165 @@ class PacManGame {
         // Render AI game
         if (this.aiEnabled) {
             this.renderGame(this.aiCtx, this.aiState, '#ff00ff');
+        }
+    }
+
+    updateUI() {
+        // Update human stats
+        document.getElementById('humanScore').textContent = this.humanState.score;
+        document.getElementById('humanLives').textContent = this.humanState.lives;
+        document.getElementById('humanLevel').textContent = this.humanState.level;
+        document.getElementById('humanPellets').textContent =
+            this.humanState.pellets.length + this.humanState.powerPellets.length;
+
+        // Update AI stats
+        document.getElementById('aiScore').textContent = this.aiState.score;
+        document.getElementById('aiLives').textContent = this.aiState.lives;
+        document.getElementById('aiLevel').textContent = this.aiState.level;
+        document.getElementById('aiPellets').textContent =
+            this.aiState.pellets.length + this.aiState.powerPellets.length;
+
+        // Update vectorization count
+        document.getElementById('vectorizedMoves').textContent = this.moveCount;
+
+        // Update game state indicators
+        this.updateGameStateIndicator('humanStatus', this.humanState);
+        this.updateGameStateIndicator('aiStatus', this.aiState);
+
+        // Update statistics UI
+        this.updateStatsUI();
+    }
+
+    updateStatsUI() {
+        if (!window.gameStats) return;
+
+        const stats = window.gameStats.getSummary();
+
+        // Learning metrics
+        const learningEl = document.getElementById('learningMetrics');
+        if (learningEl) {
+            learningEl.innerHTML = `
+                <div class="stat-mini">
+                    <span>Predictions:</span> <strong>${stats.learning.totalPredictions}</strong>
+                </div>
+                <div class="stat-mini">
+                    <span>Accuracy:</span> <strong>${stats.learning.predictionAccuracy.toFixed(1)}%</strong>
+                </div>
+                <div class="stat-mini">
+                    <span>Avg Confidence:</span> <strong>${(stats.learning.averageConfidence * 100).toFixed(1)}%</strong>
+                </div>
+                <div class="stat-mini">
+                    <span>Unique States:</span> <strong>${stats.learning.uniqueStatesLearned}</strong>
+                </div>
+            `;
+        }
+
+        // Comparison metrics
+        const comparisonEl = document.getElementById('comparisonMetrics');
+        if (comparisonEl) {
+            const humanWins = stats.comparison.gamesWhereHumanWon;
+            const aiWins = stats.comparison.gamesWhereAIWon;
+            const winner = humanWins > aiWins ? '👤 Human Leading!' :
+                          aiWins > humanWins ? '🤖 AI Leading!' :
+                          '⚖️ Tied!';
+
+            comparisonEl.innerHTML = `
+                <div class="stat-mini">
+                    <span>Human Wins:</span> <strong style="color: #ffff00">${humanWins}</strong>
+                </div>
+                <div class="stat-mini">
+                    <span>AI Wins:</span> <strong style="color: #ff00ff">${aiWins}</strong>
+                </div>
+                <div class="stat-mini">
+                    <span>Human Avg:</span> <strong>${stats.human.avgScore.toFixed(0)}</strong>
+                </div>
+                <div class="stat-mini">
+                    <span>AI Avg:</span> <strong>${stats.ai.avgScore.toFixed(0)}</strong>
+                </div>
+                <div class="stat-mini winner">
+                    ${winner}
+                </div>
+            `;
+        }
+
+        // Recent rewards
+        this.updateRecentRewards();
+        // Recent decisions
+        this.updateRecentDecisions();
+    }
+
+    updateRecentRewards() {
+        const rewardsEl = document.getElementById('recentRewards');
+        if (!rewardsEl || !window.gameStats) return;
+
+        const rewards = window.gameStats.learningMetrics.rewardHistory.slice(-5).reverse();
+        if (rewards.length === 0) {
+            rewardsEl.innerHTML = '<small style="color: #666;">No rewards yet...</small>';
+            return;
+        }
+
+        rewardsEl.innerHTML = rewards.map(r => {
+            const className = r.total > 0 ? 'positive' : r.total < 0 ? 'negative' : 'neutral';
+            return `<div class="reward-item ${className}">
+                <span>${r.total > 0 ? '+' : ''}${r.total.toFixed(1)}</span>
+                <span style="font-size: 9px; color: #666;">${new Date(r.timestamp).toLocaleTimeString()}</span>
+            </div>`;
+        }).join('');
+    }
+
+    updateRecentDecisions() {
+        const decisionsEl = document.getElementById('recentDecisions');
+        if (!decisionsEl || !window.gameStats) return;
+
+        const decisions = window.gameStats.currentGame.aiPredictions.slice(-8).reverse();
+        if (decisions.length === 0) {
+            decisionsEl.innerHTML = '<small style="color: #666;">No decisions yet...</small>';
+            return;
+        }
+
+        decisionsEl.innerHTML = decisions.map(d => {
+            const outcomeColor = d.outcome === 'death' ? '#ff0000' :
+                                d.outcome === 'pellet' ? '#00ff00' :
+                                d.outcome === 'ghost_eaten' ? '#00ffff' :
+                                d.outcome === 'power' ? '#ffaa00' : '#666';
+            return `<div class="decision-item">
+                <span style="color: ${outcomeColor};">${d.action}</span>
+                <span style="float: right; color: #666; font-size: 9px;">${d.outcome}</span>
+            </div>`;
+        }).join('');
+    }
+
+    updateGameStateIndicator(elementId, state) {
+        const statusEl = document.getElementById(elementId);
+        if (!statusEl) return;
+
+        statusEl.className = 'game-status';
+
+        switch (state.gameState) {
+            case 'playing':
+                if (state.invincible) {
+                    statusEl.textContent = 'INVINCIBLE';
+                    statusEl.classList.add('status-invincible');
+                } else if (state.powerMode) {
+                    statusEl.textContent = 'POWER MODE';
+                    statusEl.classList.add('status-power');
+                } else {
+                    statusEl.textContent = 'PLAYING';
+                    statusEl.classList.add('status-playing');
+                }
+                break;
+            case 'paused':
+                statusEl.textContent = 'PAUSED';
+                statusEl.classList.add('status-paused');
+                break;
+            case 'gameover':
+                statusEl.textContent = 'GAME OVER';
+                statusEl.classList.add('status-gameover');
+                break;
+            case 'won':
+                statusEl.textContent = 'YOU WON!';
+                statusEl.classList.add('status-won');
+                break;
         }
     }
 
@@ -339,19 +702,22 @@ class PacManGame {
             ctx.fill();
         });
 
-        // Draw power pellets
-        ctx.fillStyle = '#00ffff';
-        state.powerPellets.forEach(pellet => {
-            ctx.beginPath();
-            ctx.arc(
-                pellet.x * this.cellSize + this.cellSize / 2,
-                pellet.y * this.cellSize + this.cellSize / 2,
-                4,
-                0,
-                Math.PI * 2
-            );
-            ctx.fill();
-        });
+        // Draw power pellets (blinking effect)
+        const blinkOn = Math.floor(Date.now() / 300) % 2 === 0;
+        if (blinkOn) {
+            ctx.fillStyle = '#00ffff';
+            state.powerPellets.forEach(pellet => {
+                ctx.beginPath();
+                ctx.arc(
+                    pellet.x * this.cellSize + this.cellSize / 2,
+                    pellet.y * this.cellSize + this.cellSize / 2,
+                    4,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            });
+        }
 
         // Draw ghosts
         state.ghosts.forEach(ghost => {
@@ -364,16 +730,64 @@ class PacManGame {
             );
         });
 
-        // Draw Pac-Man
-        ctx.fillStyle = playerColor;
-        this.drawPacMan(
-            ctx,
-            state.player.x * this.cellSize,
-            state.player.y * this.cellSize,
-            this.cellSize,
-            state.player.direction,
-            state.player.mouthOpen
-        );
+        // Draw Pac-Man (blink during invincibility)
+        if (!state.invincible || Math.floor(Date.now() / 150) % 2 === 0) {
+            ctx.fillStyle = state.invincible ? '#ffffff' : playerColor;
+            this.drawPacMan(
+                ctx,
+                state.player.x * this.cellSize,
+                state.player.y * this.cellSize,
+                this.cellSize,
+                state.player.direction,
+                state.player.mouthOpen
+            );
+        }
+
+        // Draw game state overlay
+        if (state.gameState !== 'playing') {
+            this.drawOverlay(ctx, state);
+        }
+    }
+
+    drawOverlay(ctx, state) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 24px "Courier New"';
+        ctx.textAlign = 'center';
+
+        let message = '';
+        switch (state.gameState) {
+            case 'paused':
+                message = 'PAUSED';
+                ctx.fillText(message, ctx.canvas.width / 2, ctx.canvas.height / 2 - 20);
+                ctx.font = '14px "Courier New"';
+                ctx.fillText('Press SPACE to resume', ctx.canvas.width / 2, ctx.canvas.height / 2 + 20);
+                break;
+            case 'gameover':
+                ctx.fillStyle = '#ff0000';
+                message = 'GAME OVER';
+                ctx.fillText(message, ctx.canvas.width / 2, ctx.canvas.height / 2 - 30);
+                ctx.fillStyle = '#fff';
+                ctx.font = '18px "Courier New"';
+                ctx.fillText(`Score: ${state.score}`, ctx.canvas.width / 2, ctx.canvas.height / 2 + 10);
+                ctx.font = '14px "Courier New"';
+                ctx.fillText('Click "Reset Game" to play again', ctx.canvas.width / 2, ctx.canvas.height / 2 + 40);
+                break;
+            case 'won':
+                ctx.fillStyle = '#00ff00';
+                message = 'YOU WON!';
+                ctx.fillText(message, ctx.canvas.width / 2, ctx.canvas.height / 2 - 30);
+                ctx.fillStyle = '#fff';
+                ctx.font = '18px "Courier New"';
+                ctx.fillText(`Final Score: ${state.score}`, ctx.canvas.width / 2, ctx.canvas.height / 2 + 10);
+                ctx.font = '14px "Courier New"';
+                ctx.fillText('Click "Reset Game" for next level', ctx.canvas.width / 2, ctx.canvas.height / 2 + 40);
+                break;
+        }
+
+        ctx.textAlign = 'left';
     }
 
     drawPacMan(ctx, x, y, size, direction, mouthOpen) {

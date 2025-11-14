@@ -30,11 +30,30 @@ class DQNAgent {
 
         this.lastPredictionTime = now;
 
+        // Exploration vs Exploitation
+        const explorationRate = window.gameStats ?
+            window.gameStats.learningMetrics.explorationRate : 0.1;
+
+        // Occasionally explore (random move) to discover new strategies
+        if (Math.random() < explorationRate) {
+            const randomPrediction = this.fallbackPrediction(gameState);
+            randomPrediction.explored = true;
+
+            // Track exploration
+            if (window.gameStats) {
+                window.gameStats.learningMetrics.totalPredictions++;
+            }
+
+            return randomPrediction;
+        }
+
         try {
             // Check cache first
             const stateKey = this.getStateKey(gameState);
             if (this.predictionCache.has(stateKey)) {
-                return this.predictionCache.get(stateKey);
+                const cached = this.predictionCache.get(stateKey);
+                cached.cached = true;
+                return cached;
             }
 
             // Call Cloudflare Worker for prediction
@@ -72,6 +91,13 @@ class DQNAgent {
                     this.previousMoves.shift();
                 }
 
+                // Track prediction
+                if (window.gameStats) {
+                    window.gameStats.learningMetrics.totalPredictions++;
+                    window.gameStats.learningMetrics.vectorizedStates =
+                        this.predictionCache.size;
+                }
+
                 return data.prediction;
             } else {
                 return this.fallbackPrediction(gameState);
@@ -83,41 +109,73 @@ class DQNAgent {
     }
 
     /**
-     * Fallback prediction using simple heuristics
-     * Used when API is unavailable or returns errors
+     * Fallback prediction using improved heuristics
+     * Used when API is unavailable or for exploration
      */
     fallbackPrediction(gameState) {
         const actions = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-
-        // Simple heuristic: avoid closest ghost
-        let bestAction = actions[Math.floor(Math.random() * actions.length)];
-        let maxDistance = -1;
+        const scores = {};
 
         for (const action of actions) {
+            let score = 0;
             const nextPos = this.getNextPosition(
                 gameState.playerX,
                 gameState.playerY,
                 action
             );
 
-            // Calculate minimum distance to any ghost
+            // 1. Ghost avoidance (highest priority)
             let minGhostDistance = Infinity;
             for (const ghost of gameState.ghosts) {
-                const distance = Math.abs(nextPos.x - ghost.x) + Math.abs(nextPos.y - ghost.y);
+                const distance = Math.abs(nextPos.x - ghost.x) +
+                               Math.abs(nextPos.y - ghost.y);
                 minGhostDistance = Math.min(minGhostDistance, distance);
+
+                if (distance === 0) {
+                    score -= 1000; // Death!
+                } else if (distance === 1) {
+                    score -= 100; // Very dangerous
+                } else if (distance === 2) {
+                    score -= 20; // Close call
+                } else {
+                    score += distance * 5; // Reward distance
+                }
             }
 
-            // Choose action that maximizes distance from nearest ghost
-            if (minGhostDistance > maxDistance) {
-                maxDistance = minGhostDistance;
+            // 2. Avoid recent moves (exploration)
+            if (this.previousMoves.slice(-3).includes(action)) {
+                score -= 10;
+            }
+
+            // 3. Prefer center positions (more options)
+            const distanceFromCenter = Math.abs(nextPos.x - 10) + Math.abs(nextPos.y - 10);
+            score -= distanceFromCenter * 0.5;
+
+            // 4. Add randomness for exploration
+            score += Math.random() * 5;
+
+            scores[action] = score;
+        }
+
+        // Find best action
+        let bestAction = actions[0];
+        let maxScore = scores[bestAction];
+
+        for (const action of actions) {
+            if (scores[action] > maxScore) {
+                maxScore = scores[action];
                 bestAction = action;
             }
         }
 
+        // Normalize confidence (0-1)
+        const totalScore = Object.values(scores).reduce((a, b) => Math.abs(a) + Math.abs(b), 0);
+        const confidence = totalScore > 0 ? Math.abs(maxScore) / totalScore : 0.5;
+
         return {
             action: bestAction,
-            confidence: 0.5,
-            allScores: {},
+            confidence: Math.min(confidence, 0.9),
+            allScores: scores,
             fallback: true
         };
     }

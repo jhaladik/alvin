@@ -113,24 +113,97 @@ class VectorizationSystem {
 
     /**
      * Calculate reward for reinforcement learning
+     * Enhanced with better signal quality for AI learning
      */
-    calculateReward(gameState) {
+    calculateReward(gameState, previousState) {
         let reward = 0;
+        let rewardDetails = {
+            score: 0,
+            ghostAvoidance: 0,
+            pelletProgress: 0,
+            positioning: 0,
+            survival: 0
+        };
 
-        // Positive reward for score increase
-        reward += gameState.score * 0.1;
+        // 1. Score-based reward (immediate feedback)
+        if (previousState) {
+            const scoreDelta = gameState.score - previousState.score;
+            rewardDetails.score = scoreDelta;
+            reward += scoreDelta;
+        } else {
+            rewardDetails.score = gameState.score * 0.01;
+            reward += gameState.score * 0.01;
+        }
 
-        // Negative reward for being close to ghosts
+        // 2. Ghost proximity penalty (danger awareness)
+        let minGhostDistance = Infinity;
         for (const ghost of gameState.ghosts) {
             const distance = Math.abs(gameState.playerX - ghost.x) +
                              Math.abs(gameState.playerY - ghost.y);
-            if (distance < 3) {
-                reward -= (3 - distance) * 10;
+            minGhostDistance = Math.min(minGhostDistance, distance);
+
+            if (distance === 0) {
+                // Death or ghost eaten
+                rewardDetails.ghostAvoidance -= 100;
+                reward -= 100;
+            } else if (distance === 1) {
+                // Very close call!
+                rewardDetails.ghostAvoidance -= 30;
+                reward -= 30;
+            } else if (distance === 2) {
+                // Close call
+                rewardDetails.ghostAvoidance -= 10;
+                reward -= 10;
+            } else if (distance <= 4) {
+                // Nearby threat
+                rewardDetails.ghostAvoidance -= (5 - distance) * 2;
+                reward -= (5 - distance) * 2;
             }
         }
 
-        // Positive reward for collecting pellets
-        reward += (250 - gameState.pelletsLeft) * 0.5;
+        // 3. Pellet collection progress (completion incentive)
+        const totalPellets = gameState.totalPellets || 250;
+        const pelletsCollected = totalPellets - gameState.pelletsLeft;
+        const progressRatio = pelletsCollected / totalPellets;
+        rewardDetails.pelletProgress = progressRatio * 10;
+        reward += progressRatio * 10;
+
+        // 4. Positioning reward (strategic placement)
+        // Reward being in center of board (more options)
+        const centerX = 10, centerY = 10;
+        const distanceFromCenter = Math.abs(gameState.playerX - centerX) +
+                                   Math.abs(gameState.playerY - centerY);
+        if (distanceFromCenter < 5 && minGhostDistance > 3) {
+            rewardDetails.positioning = 2;
+            reward += 2;
+        }
+
+        // 5. Survival reward (staying alive is good)
+        if (gameState.lives > 0) {
+            rewardDetails.survival = 1;
+            reward += 1;
+        }
+
+        // 6. Exploration bonus (encourage new areas)
+        // Small random reward to encourage exploration
+        if (Math.random() < 0.1) {
+            rewardDetails.positioning += 0.5;
+            reward += 0.5;
+        }
+
+        // Store reward components for analysis
+        if (window.gameStats) {
+            window.gameStats.learningMetrics.rewardHistory.push({
+                timestamp: Date.now(),
+                total: reward,
+                details: rewardDetails
+            });
+
+            // Keep only last 1000 rewards
+            if (window.gameStats.learningMetrics.rewardHistory.length > 1000) {
+                window.gameStats.learningMetrics.rewardHistory.shift();
+            }
+        }
 
         return reward;
     }

@@ -18,7 +18,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Route handling
+    // API Route handling
     if (url.pathname === '/api/vectorize') {
       return handleVectorize(request, env, corsHeaders);
     } else if (url.pathname === '/api/predict') {
@@ -27,6 +27,31 @@ export default {
       return handleStoreMove(request, env, corsHeaders);
     } else if (url.pathname === '/api/get-similar-moves') {
       return handleSimilarMoves(request, env, corsHeaders);
+    }
+
+    // Static file serving (injected during build)
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return new Response(HTML, {
+        headers: { 'Content-Type': 'text/html' }
+      });
+    } else if (url.pathname === '/statistics.js') {
+      return new Response(STATISTICS_JS, {
+        headers: { 'Content-Type': 'application/javascript' }
+      });
+    } else if (url.pathname === '/game.js') {
+      return new Response(GAME_JS, {
+        headers: { 'Content-Type': 'application/javascript' }
+      });
+    } else if (url.pathname === '/dqn-agent.js') {
+      return new Response(DQN_AGENT_JS, {
+        headers: { 'Content-Type': 'application/javascript' }
+      });
+    } else if (url.pathname === '/vectorization.js') {
+      return new Response(VECTORIZATION_JS, {
+        headers: { 'Content-Type': 'application/javascript' }
+      });
+    } else if (url.pathname === '/favicon.ico') {
+      return new Response('', { status: 204 });
     }
 
     return new Response('Not Found', { status: 404 });

@@ -4,8 +4,9 @@
   "description": "Pac-Man with DQN AI and human vectorization on Cloudflare",
   "main": "worker/index.js",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "build": "node bundle-worker.js",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
     "preview": "wrangler pages dev frontend"
   },
   "keywords": ["pacman", "dqn", "ai", "cloudflare", "vectorization"],
