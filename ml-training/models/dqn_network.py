@@ -26,7 +26,8 @@ class DQNNetwork(nn.Module):
         for hidden_dim in hidden_dims:
             layers.append(nn.Linear(prev_dim, hidden_dim))
             layers.append(nn.ReLU())
-            layers.append(nn.Dropout(dropout))
+            if dropout > 0:  # Only add dropout if > 0
+                layers.append(nn.Dropout(dropout))
             prev_dim = hidden_dim
 
         # Output layer: Q-values for each action
