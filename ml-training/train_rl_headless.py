@@ -133,14 +133,14 @@ def main():
     print()
 
     # Hyperparameters
-    NUM_EPISODES = 5000
+    NUM_EPISODES = 100000
     MAX_STEPS_PER_EPISODE = 1000
     BATCH_SIZE = 64
     LEARNING_RATE = 0.0001
     GAMMA = 0.99
     EPSILON_START = 1.0
     EPSILON_END = 0.01
-    EPSILON_DECAY = 0.995
+    EPSILON_DECAY = 0.9999  # Slower decay for longer training
     TARGET_UPDATE_FREQ = 100  # Update target network every N episodes
     REPLAY_BUFFER_SIZE = 100000
     MIN_REPLAY_SIZE = 1000
@@ -169,7 +169,8 @@ def main():
             dropout=0.0  # No dropout during RL training
         )
         model.load_state_dict(checkpoint['model_state_dict'])
-        print(f"[+] Loaded pre-trained model (epoch {checkpoint['epoch']})")
+        epoch_or_episode = checkpoint.get('episode', checkpoint.get('epoch', 'N/A'))
+        print(f"[+] Loaded pre-trained model (episode/epoch {epoch_or_episode})")
     else:
         print("No pre-trained model found. Starting from scratch...")
         model = DQNNetwork(input_dim=state_dim, hidden_dims=[256, 256, 128], output_dim=4, dropout=0.0)
@@ -236,12 +237,13 @@ def main():
 
         # Log progress
         if (episode + 1) % 100 == 0:
+            loss_str = f"{loss:.4f}" if loss is not None else "0.0000"
             print(f"Episode {episode + 1}/{NUM_EPISODES} | "
                   f"Reward: {episode_reward:.1f} | "
                   f"Avg (100): {avg_reward_100:.1f} | "
                   f"Steps: {episode_steps} | "
                   f"Epsilon: {epsilon:.3f} | "
-                  f"Loss: {loss:.4f if loss else 0:.4f} | "
+                  f"Loss: {loss_str} | "
                   f"Score: {info.get('score', 0)}")
 
         # Save best model
@@ -264,7 +266,7 @@ def main():
                 }
             }, 'checkpoints/best_rl_model.pth')
 
-            print(f"  → Saved best RL model (avg_reward: {avg_reward_100:.1f})")
+            print(f"  [SAVED] Best RL model (avg_reward: {avg_reward_100:.1f})")
 
     print()
     print("=" * 70)
