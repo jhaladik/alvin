@@ -413,17 +413,11 @@ class PacManGame {
                     learnedFromEl.textContent = prediction.learnedFrom;
                 }
 
-                // Update ML Prediction Status (NEW!)
+                // Update ML Prediction Status
                 this.updateMLStatusUI(prediction);
 
-                // Update Path Planning Status
-                this.updatePathPlanningUI();
-
-                // Update Decision Details
-                this.updateDecisionDetailsUI(prediction);
-
-                // Update Current Strategy Display
-                this.updateCurrentStrategyUI(this.aiState);
+                // Obsolete sections removed (path planning, strategy, decision details)
+                // Now using pure DQN Q-value based decisions from HF Spaces
             }
         }
     }
@@ -1236,6 +1230,9 @@ class PacManGame {
             formatQValue('DOWN');
             formatQValue('LEFT');
             formatQValue('RIGHT');
+
+            // Update inference stats
+            this.updateInferenceStats(qValues);
         } else {
             // No Q-values available
             ['qValueUp', 'qValueDown', 'qValueLeft', 'qValueRight'].forEach(id => {
@@ -1247,6 +1244,64 @@ class PacManGame {
                 }
             });
         }
+
+        // Update action distribution
+        this.updateActionDistribution(prediction.action);
+    }
+
+    updateInferenceStats(qValues) {
+        // Calculate stats
+        const qValueArray = [qValues.UP, qValues.DOWN, qValues.LEFT, qValues.RIGHT];
+        const avgQ = qValueArray.reduce((a, b) => a + b, 0) / 4;
+        const maxQ = Math.max(...qValueArray);
+
+        // Update avg Q-value
+        const avgEl = document.getElementById('avgQValue');
+        if (avgEl) {
+            avgEl.textContent = avgQ.toFixed(2);
+            avgEl.style.color = avgQ > 0 ? '#00ff00' : avgQ < 0 ? '#ff8888' : '#888';
+        }
+
+        // Update max Q-value
+        const maxEl = document.getElementById('maxQValue');
+        if (maxEl) {
+            maxEl.textContent = maxQ.toFixed(2);
+            maxEl.style.color = '#00ff00';
+        }
+
+        // Update total predictions
+        if (!this.totalPredictions) this.totalPredictions = 0;
+        this.totalPredictions++;
+        const totalEl = document.getElementById('totalPredictions');
+        if (totalEl) {
+            totalEl.textContent = this.totalPredictions.toString();
+        }
+    }
+
+    updateActionDistribution(action) {
+        // Track last 20 actions
+        if (!this.actionHistory) this.actionHistory = [];
+        this.actionHistory.push(action);
+        if (this.actionHistory.length > 20) {
+            this.actionHistory.shift();
+        }
+
+        // Count distribution
+        const counts = { UP: 0, DOWN: 0, LEFT: 0, RIGHT: 0 };
+        this.actionHistory.forEach(a => counts[a]++);
+
+        const total = this.actionHistory.length;
+
+        // Update UI for each action
+        ['UP', 'DOWN', 'LEFT', 'RIGHT'].forEach(action => {
+            const pct = total > 0 ? (counts[action] / total) * 100 : 0;
+
+            const textEl = document.getElementById(`dist${action.charAt(0) + action.slice(1).toLowerCase()}`);
+            const barEl = document.getElementById(`dist${action.charAt(0) + action.slice(1).toLowerCase()}Bar`);
+
+            if (textEl) textEl.textContent = pct.toFixed(0) + '%';
+            if (barEl) barEl.style.width = pct + '%';
+        });
     }
 
     updateDecisionDetailsUI(prediction) {

@@ -573,71 +573,59 @@
             </div>
 
             <div class="section">
-                <h3 style="color: #9966ff;">🗺️ Path Planning</h3>
-                <div id="pathPlanningStatus" style="font-size: 11px;">
-                    <div class="stat-row">
-                        <span class="stat-label">Status:</span>
-                        <span class="ai-prediction" id="planStatus">No Plan</span>
+                <h3 style="color: #00ffff;">📊 Action Distribution</h3>
+                <div id="actionDistribution" style="font-size: 11px;">
+                    <div style="color: #888; margin-bottom: 8px;">Last 20 AI Moves:</div>
+                    <div class="stat-row" style="margin-bottom: 3px;">
+                        <span class="stat-label">UP:</span>
+                        <span class="ai-prediction" id="distUp">0%</span>
+                        <div class="progress-bar" style="margin-top: 2px; height: 6px;">
+                            <div class="progress-fill" id="distUpBar" style="width: 0%; background: #00ffff;"></div>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Goal:</span>
-                        <span class="ai-prediction" id="planGoal">-</span>
+                    <div class="stat-row" style="margin-bottom: 3px;">
+                        <span class="stat-label">DOWN:</span>
+                        <span class="ai-prediction" id="distDown">0%</span>
+                        <div class="progress-bar" style="margin-top: 2px; height: 6px;">
+                            <div class="progress-fill" id="distDownBar" style="width: 0%; background: #00ffff;"></div>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Moves Left:</span>
-                        <span class="ai-prediction" id="planMovesLeft">-</span>
+                    <div class="stat-row" style="margin-bottom: 3px;">
+                        <span class="stat-label">LEFT:</span>
+                        <span class="ai-prediction" id="distLeft">0%</span>
+                        <div class="progress-bar" style="margin-top: 2px; height: 6px;">
+                            <div class="progress-fill" id="distLeftBar" style="width: 0%; background: #00ffff;"></div>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Progress:</span>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="planProgressBar" style="width: 0%; background: linear-gradient(90deg, #9966ff, #cc99ff);"></div>
+                    <div class="stat-row" style="margin-bottom: 3px;">
+                        <span class="stat-label">RIGHT:</span>
+                        <span class="ai-prediction" id="distRight">0%</span>
+                        <div class="progress-bar" style="margin-top: 2px; height: 6px;">
+                            <div class="progress-fill" id="distRightBar" style="width: 0%; background: #00ffff;"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="section">
-                <h3 style="color: #ff6600;">🎯 Current Strategy</h3>
-                <div id="currentStrategy" style="font-size: 11px;">
+                <h3 style="color: #ff9900;">⚡ Inference Stats</h3>
+                <div id="inferenceStats" style="font-size: 11px;">
                     <div class="stat-row">
-                        <span class="stat-label">Strategy:</span>
-                        <span class="ai-prediction" id="strategyType" style="font-weight: bold; text-transform: uppercase;">-</span>
+                        <span class="stat-label">Response Time:</span>
+                        <span class="ai-prediction" id="inferenceTime">-</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Risk Level:</span>
-                        <span class="ai-prediction" id="riskLevel">0%</span>
-                        <div class="progress-bar" style="margin-top: 3px;">
-                            <div class="progress-fill" id="riskBar" style="width: 0%; background: linear-gradient(90deg, #00ff00, #ff0000);"></div>
-                        </div>
+                        <span class="stat-label">Avg Q-Value:</span>
+                        <span class="ai-prediction" id="avgQValue">-</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Efficiency:</span>
-                        <span class="ai-prediction" id="efficiency">0%</span>
-                        <div class="progress-bar" style="margin-top: 3px;">
-                            <div class="progress-fill" id="efficiencyBar" style="width: 0%; background: linear-gradient(90deg, #ffaa00, #00ff00);"></div>
-                        </div>
+                        <span class="stat-label">Max Q-Value:</span>
+                        <span class="ai-prediction" id="maxQValue">-</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">Aggression:</span>
-                        <span class="ai-prediction" id="aggression">0%</span>
-                        <div class="progress-bar" style="margin-top: 3px;">
-                            <div class="progress-fill" id="aggressionBar" style="width: 0%; background: linear-gradient(90deg, #666, #ff6600);"></div>
-                        </div>
+                        <span class="stat-label">Predictions:</span>
+                        <span class="ai-prediction" id="totalPredictions">0</span>
                     </div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3 style="color: #ff9900;">🔀 Decision Details</h3>
-                <div id="decisionDetails" style="font-size: 11px; color: #aaa;">
-                    <small style="color: #666;">Waiting for decision...</small>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3 style="color: #00ffff;">📊 Score Spread</h3>
-                <div id="scoreSpread" style="font-size: 11px;">
-                    <small style="color: #666;">Waiting for prediction...</small>
                 </div>
             </div>
 
