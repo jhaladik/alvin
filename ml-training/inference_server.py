@@ -54,12 +54,24 @@ def load_model():
     input_dim = checkpoint['config'].get('input_dim', 128)
     print(f"  Input dimension: {input_dim}")
 
-    # Create DQN model
+    # DETECT DROPOUT from checkpoint state_dict
+    state_dict_keys = list(checkpoint['model_state_dict'].keys())
+    network_keys = [k for k in state_dict_keys if k.startswith('network.')]
+    max_layer_idx = max([int(k.split('.')[1]) for k in network_keys])
+
+    # If max index > 6, model has dropout layers (3 hidden = 9 with dropout, 6 without)
+    has_dropout = max_layer_idx > 6
+    dropout_value = 0.3 if has_dropout else 0.0
+
+    print(f"  Dropout detected: {has_dropout} (value={dropout_value})")
+    print(f"  Max layer index: {max_layer_idx}")
+
+    # Create DQN model with correct dropout
     model = DQNNetwork(
         input_dim=input_dim,
         hidden_dims=checkpoint['config']['hidden_dims'],
         output_dim=4,
-        dropout=0.0  # No dropout for inference
+        dropout=dropout_value  # Auto-detected dropout
     )
 
     # Load weights
