@@ -144,14 +144,62 @@ class PacManGame {
 
     generateWalls() {
         const walls = [];
-        // Create a simple maze pattern
-        for (let i = 0; i < this.gridSize; i++) {
-            if (i % 4 === 0 && i > 0 && i < this.gridSize - 1) {
-                for (let j = 2; j < this.gridSize - 2; j += 2) {
-                    walls.push({ x: i, y: j });
-                }
+
+        // FIXED MAZE (matches training environment exactly!)
+        // This is the same maze layout the AI was trained on
+
+        // Border walls
+        for (let x = 0; x < this.gridSize; x++) {
+            walls.push({ x: x, y: 0 });
+            walls.push({ x: x, y: this.gridSize - 1 });
+        }
+        for (let y = 0; y < this.gridSize; y++) {
+            walls.push({ x: 0, y: y });
+            walls.push({ x: this.gridSize - 1, y: y });
+        }
+
+        // Horizontal walls (top and bottom)
+        for (let x = 3; x < 8; x++) {
+            walls.push({ x: x, y: 3 });
+            walls.push({ x: x, y: this.gridSize - 4 });
+        }
+        for (let x = this.gridSize - 8; x < this.gridSize - 3; x++) {
+            walls.push({ x: x, y: 3 });
+            walls.push({ x: x, y: this.gridSize - 4 });
+        }
+
+        // Vertical walls (left and right)
+        for (let y = 5; y < 10; y++) {
+            walls.push({ x: 5, y: y });
+            walls.push({ x: this.gridSize - 6, y: y });
+        }
+        for (let y = this.gridSize - 10; y < this.gridSize - 5; y++) {
+            walls.push({ x: 5, y: y });
+            walls.push({ x: this.gridSize - 6, y: y });
+        }
+
+        // Center T-shaped structure
+        const centerX = Math.floor(this.gridSize / 2);
+        const centerY = Math.floor(this.gridSize / 2);
+        for (let x = centerX - 2; x <= centerX + 2; x++) {
+            walls.push({ x: x, y: centerY - 2 });
+            walls.push({ x: x, y: centerY + 2 });
+        }
+        for (let y = centerY - 2; y <= centerY + 2; y++) {
+            walls.push({ x: centerX - 2, y: y });
+            walls.push({ x: centerX + 2, y: y });
+        }
+
+        // Corner blocks
+        for (let dx = 0; dx <= 1; dx++) {
+            for (let dy = 0; dy <= 1; dy++) {
+                walls.push({ x: 3 + dx, y: 5 + dy });
+                walls.push({ x: this.gridSize - 4 - dx, y: 5 + dy });
+                walls.push({ x: 3 + dx, y: this.gridSize - 6 - dy });
+                walls.push({ x: this.gridSize - 4 - dx, y: this.gridSize - 6 - dy });
             }
         }
+
         return walls;
     }
 
