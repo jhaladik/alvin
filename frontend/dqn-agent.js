@@ -5,8 +5,10 @@
 
 class DQNAgent {
     constructor() {
-        // Change this to your worker URL when deployed
-        this.workerURL = window.location.origin;
+        // Use local ML inference server when running on localhost
+        // Otherwise use Cloudflare Worker
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        this.workerURL = isLocal ? 'http://localhost:5000' : window.location.origin;
 
         this.previousMoves = [];
         this.maxHistoryLength = 10;

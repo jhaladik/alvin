@@ -14,7 +14,9 @@
       "Bash(where.exe:*)",
       "Bash(powershell -Command \"ngc whoami\")",
       "Bash(python -m pip:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(node local-server.js:*)"
     ],
     "deny": [],
     "ask": []
