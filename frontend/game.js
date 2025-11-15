@@ -633,13 +633,7 @@ class PacManGame {
                     <span>Predictions:</span> <strong>${stats.learning.totalPredictions}</strong>
                 </div>
                 <div class="stat-mini">
-                    <span>Accuracy:</span> <strong>${stats.learning.predictionAccuracy.toFixed(1)}%</strong>
-                </div>
-                <div class="stat-mini">
                     <span>Avg Confidence:</span> <strong>${(stats.learning.averageConfidence * 100).toFixed(1)}%</strong>
-                </div>
-                <div class="stat-mini">
-                    <span>Unique States:</span> <strong>${stats.learning.uniqueStatesLearned}</strong>
                 </div>
             `;
         }
@@ -671,62 +665,8 @@ class PacManGame {
                 </div>
             `;
         }
-
-        // Recent rewards
-        this.updateRecentRewards();
-        // Recent decisions
-        this.updateRecentDecisions();
     }
 
-    updateRecentRewards() {
-        const rewardsEl = document.getElementById('recentRewards');
-        if (!rewardsEl || !window.gameStats) return;
-
-        const rewards = window.gameStats.learningMetrics.rewardHistory.slice(-5).reverse();
-        if (rewards.length === 0) {
-            rewardsEl.innerHTML = '<small style="color: #666;">No rewards yet...</small>';
-            return;
-        }
-
-        rewardsEl.innerHTML = rewards.map(r => {
-            const className = r.total > 0 ? 'positive' : r.total < 0 ? 'negative' : 'neutral';
-            return `<div class="reward-item ${className}">
-                <span>${r.total > 0 ? '+' : ''}${r.total.toFixed(1)}</span>
-                <span style="font-size: 9px; color: #666;">${new Date(r.timestamp).toLocaleTimeString()}</span>
-            </div>`;
-        }).join('');
-    }
-
-    updateRecentDecisions() {
-        const decisionsEl = document.getElementById('recentDecisions');
-        if (!decisionsEl || !window.gameStats) return;
-
-        const decisions = window.gameStats.currentGame.aiPredictions.slice(-8).reverse();
-        if (decisions.length === 0) {
-            decisionsEl.innerHTML = '<small style="color: #666;">No decisions yet...</small>';
-            return;
-        }
-
-        decisionsEl.innerHTML = decisions.map(d => {
-            const outcomeColor = d.outcome === 'death' ? '#ff0000' :
-                                d.outcome === 'pellet' ? '#00ff00' :
-                                d.outcome === 'ghost_eaten' ? '#00ffff' :
-                                d.outcome === 'power' ? '#ffaa00' :
-                                d.outcome === 'close_call' ? '#ff6600' : '#666';
-
-            const successIcon = d.wasSuccessful === true ? '✓' :
-                               d.wasSuccessful === false ? '✗' : '';
-            const rewardText = d.reward !== undefined ? `${d.reward > 0 ? '+' : ''}${d.reward.toFixed(0)}` : '';
-
-            return `<div class="decision-item">
-                <span style="color: ${outcomeColor};">${d.action}</span>
-                <span style="float: right;">
-                    <span style="color: ${d.wasSuccessful ? '#00ff00' : '#ff0000'}; margin-right: 3px;">${successIcon}</span>
-                    <span style="color: ${d.reward > 0 ? '#00ff00' : d.reward < 0 ? '#ff0000' : '#666'}; font-size: 9px;">${rewardText}</span>
-                </span>
-            </div>`;
-        }).join('');
-    }
 
     updateGameStateIndicator(elementId, state) {
         const statusEl = document.getElementById(elementId);
