@@ -1,0 +1,58 @@
+# Render Ignore - Files to exclude from deployment
+
+# Training data (large files)
+data/
+samples/
+*.csv
+*.json
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Training logs
+runs/
+logs/
+*.log
+
+# Temporary Python files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation (keep only essentials)
+*.md
+!RENDER_DEPLOYMENT.md
+
+# Test files
+test_*.py
+*_test.py
+
+# Local development
+local-server.js
+start-local.ps1
+LOCAL_TESTING.md
+
+# Keep only essential files:
+# - inference_server.py (main server)
+# - models/ (model architecture)
+# - checkpoints/best_dqn_model.pth (trained model)
+# - requirements.txt
+# - render.yaml

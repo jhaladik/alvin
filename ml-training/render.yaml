@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: alvin-ml-inference
+    env: python
+    region: oregon
+    plan: free
+    branch: claude/initial-setup-01Tmc3RekGmegeiG9vhiV8xQ
+    rootDir: ml-training
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 inference_server:app
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: PORT
+        sync: false

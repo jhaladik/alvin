@@ -9,3 +9,8 @@ matplotlib>=3.7.0
 pandas>=2.0.0
 scikit-learn>=1.3.0
 tqdm>=4.66.0
+
+# Flask inference server
+Flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=21.2.0

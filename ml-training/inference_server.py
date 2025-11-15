@@ -19,10 +19,14 @@ CORS(app)  # Enable CORS for frontend
 # Global model variable
 model = None
 device = None
+model_loaded = False
 
 def load_model():
     """Load trained DQN model from checkpoint"""
-    global model, device
+    global model, device, model_loaded
+
+    if model_loaded:
+        return model
 
     print("[+] Loading DQN model...")
 
@@ -57,6 +61,7 @@ def load_model():
     print(f"  Parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(f"  Model type: DQN (Q-value based, reward-aware)")
 
+    model_loaded = True
     return model
 
 @app.route('/health', methods=['GET'])
@@ -82,6 +87,10 @@ def predict():
         "previousMoves": [...]
     }
     """
+    # Lazy load model on first request (for gunicorn compatibility)
+    if not model_loaded:
+        load_model()
+
     try:
         data = request.json
 
@@ -217,7 +226,9 @@ def main():
     print()
 
     # Start Flask server
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # Use PORT env var for Render.com, default to 5000 for local
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
 if __name__ == '__main__':
     exit(main())
