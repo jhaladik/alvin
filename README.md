@@ -1,13 +1,27 @@
-# 🎮 Alvin - AI Pac-Man with DQN Avatar
+# Alvin Pac-Man AI
 
-An innovative Pac-Man game featuring parallel human and AI gameplay with real-time vectorization and Deep Q-Network (DQN) agent predictions, powered by Cloudflare Workers and AI.
+**AI-powered Pac-Man with Deep Q-Network (DQN) learning from human gameplay**
 
-## 🌟 Features
+🎮 **Play:** https://alvin-pacman-ai.jhaladik.workers.dev
+🤖 **ML Backend:** https://jozefh01-alvin-pacman-dqn.hf.space
+📊 **Architecture:** Cloudflare Workers + Hugging Face Spaces + PyTorch DQN
 
-- **Dual Gameplay**: Play Pac-Man while an AI avatar plays in parallel
-- **DQN Agent**: AI uses a Deep Q-Network with "prefrontal cortex" prediction
-- **Real-time Vectorization**: Human moves are vectorized using Cloudflare AI
-- **Cloudflare Workers**: Serverless backend with AI/ML capabilities
+---
+
+## 🎯 What is This?
+
+An intelligent Pac-Man game where AI learns to play by:
+1. **Watching humans play** (Phase 1: Behavioral cloning)
+2. **Playing thousands of games itself** (Phase 2: Reinforcement learning)
+3. **Exceeding human skill level** (Future: Self-play optimization)
+
+**Key Features:**
+- ✅ Real-time AI predictions using PyTorch DQN
+- ✅ 128-dimensional feature engineering
+- ✅ Multi-dimensional reward system
+- ✅ Headless environment for RL training
+- ✅ Deployed on Hugging Face Spaces (16GB RAM free tier)
+- ✅ Live Q-value visualization
 - **Vector Similarity Search**: Find similar past game states using Cloudflare Vectorize
 - **Reactive Frontend**: Simple, fast HTML5 Canvas rendering
 - **Learning System**: AI learns from human gameplay patterns

@@ -42,11 +42,14 @@ def load_model():
     checkpoint = torch.load(checkpoint_path, map_location=device)
     print(f"  Checkpoint epoch: {checkpoint['epoch']}")
     print(f"  Validation loss: {checkpoint['val_loss']:.2f}")
-    print(f"  Validation TD error: {checkpoint['val_td_error']:.2f}")
+
+    # Get input dimension from checkpoint config (fallback to 128)
+    input_dim = checkpoint['config'].get('input_dim', 128)
+    print(f"  Input dimension: {input_dim}")
 
     # Create DQN model
     model = DQNNetwork(
-        input_dim=768,
+        input_dim=input_dim,
         hidden_dims=checkpoint['config']['hidden_dims'],
         output_dim=4,
         dropout=0.0  # No dropout for inference
@@ -105,18 +108,13 @@ def predict():
                 'error': 'No feature vector provided'
             }), 400
 
-        # Handle dimension mismatch - frontend sends 128-dim, model expects 768-dim
-        if vector_len == 128:
-            # Pad 128-dim vector to 768-dim with zeros
-            # Training data used Cloudflare AI embeddings (768-dim)
-            # Frontend uses local feature engineering (128-dim)
-            vector = vector + [0.0] * (768 - 128)
-            print(f"[INFO] Padded 128-dim vector to 768-dim")
-        elif vector_len != 768:
-            print(f"[ERROR] Wrong vector dimension: got {vector_len}, expected 128 or 768")
+        # Validate vector dimension matches model input
+        expected_dim = model.network[0].in_features  # Get actual model input dim
+        if vector_len != expected_dim:
+            print(f"[ERROR] Wrong vector dimension: got {vector_len}, expected {expected_dim}")
             return jsonify({
                 'success': False,
-                'error': f'Invalid feature vector (expected 128 or 768 dims, got {vector_len})'
+                'error': f'Invalid feature vector (expected {expected_dim} dims, got {vector_len})'
             }), 400
 
         # Convert to tensor
