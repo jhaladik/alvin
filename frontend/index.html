@@ -454,7 +454,12 @@
 
         <!-- RIGHT SIDEBAR: AI Training Details -->
         <div class="right-sidebar">
-            <h2 style="text-align: center; margin: 0 0 20px; color: #00ffff;">🧠 AI Training</h2>
+            <h2 style="text-align: center; margin: 0 0 10px; color: #00ffff;">🧠 AI Training</h2>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <span id="mlServerBadge" style="display: inline-block; padding: 4px 12px; background: #1a1a1a; border: 1px solid #00ff00; border-radius: 12px; font-size: 10px; color: #00ff00;">
+                    🤗 HF Spaces • PyTorch DQN
+                </span>
+            </div>
 
             <div class="section">
                 <h3 style="color: #00ffff;">📊 Learning Metrics</h3>
@@ -537,6 +542,32 @@
                     <div class="stat-row" style="margin-bottom: 3px;">
                         <span class="stat-label">RIGHT:</span>
                         <span class="ai-prediction" id="mlProbRight">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 style="color: #00ff00;">⚡ DQN Q-Values</h3>
+                <div id="qValues" style="margin-top: 10px; font-size: 11px;">
+                    <div style="color: #888; margin-bottom: 8px;">State-Action Values:</div>
+                    <div class="stat-row" style="margin-bottom: 5px;">
+                        <span class="stat-label">UP:</span>
+                        <span class="ai-prediction" id="qValueUp" style="font-family: 'Courier New'; font-weight: bold;">-</span>
+                    </div>
+                    <div class="stat-row" style="margin-bottom: 5px;">
+                        <span class="stat-label">DOWN:</span>
+                        <span class="ai-prediction" id="qValueDown" style="font-family: 'Courier New'; font-weight: bold;">-</span>
+                    </div>
+                    <div class="stat-row" style="margin-bottom: 5px;">
+                        <span class="stat-label">LEFT:</span>
+                        <span class="ai-prediction" id="qValueLeft" style="font-family: 'Courier New'; font-weight: bold;">-</span>
+                    </div>
+                    <div class="stat-row" style="margin-bottom: 5px;">
+                        <span class="stat-label">RIGHT:</span>
+                        <span class="ai-prediction" id="qValueRight" style="font-family: 'Courier New'; font-weight: bold;">-</span>
+                    </div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #333; font-size: 10px; color: #666;">
+                        Higher Q-value = Better expected reward
                     </div>
                 </div>
             </div>
@@ -625,13 +656,13 @@
             </div>
 
             <div class="section">
-                <h3 style="color: #ff6600;">🔬 Training Info</h3>
+                <h3 style="color: #ff6600;">🔬 ML Architecture</h3>
                 <div style="font-size: 11px; line-height: 1.6; color: #aaa;">
-                    <p><strong style="color: #0f0;">Hybrid AI Architecture:</strong> Two-layer decision system combining strategic path planning (A*) with tactical vectorization for safety validation.</p>
-                    <p><strong style="color: #0f0;">Strategy Learning:</strong> Auto-detects play styles (hunter/defensive/aggressive/efficient/survivor/balanced) and learns from successful moves using same strategy. 4-tier filtering: strategy+success → success → context → unfiltered.</p>
-                    <p><strong style="color: #0f0;">Feature Engineering:</strong> Game states converted to 128D vectors with 69 features + strategic metrics (risk level, efficiency, aggression score) for context-aware learning.</p>
-                    <p><strong style="color: #0f0;">Move Sequences:</strong> Tracks last 5 moves to learn tactical patterns and combos, not just individual decisions.</p>
-                    <p><strong style="color: #0f0;">Smart Filtering:</strong> Prioritizes learning from successful moves in similar contexts (same strategy, power mode, game phase).</p>
+                    <p><strong style="color: #0f0;">Deep Q-Network (DQN):</strong> PyTorch neural network (296K params) trained on human gameplay using offline DQN with reward-based learning. Predicts Q-values for each action representing expected future reward.</p>
+                    <p><strong style="color: #0f0;">Deployment:</strong> Hosted on Hugging Face Spaces with 16GB RAM for real-time inference. Frontend sends 128-dim feature vectors, receives Q-values + action probabilities.</p>
+                    <p><strong style="color: #0f0;">Model Architecture:</strong> 768-dim input → 256→256→128 hidden layers → 4 outputs (UP/DOWN/LEFT/RIGHT Q-values). Uses batch norm, dropout for generalization.</p>
+                    <p><strong style="color: #0f0;">Training Data:</strong> Behavioral cloning from human gameplay + offline Q-learning updates. Learns both imitation and value estimation for optimal moves.</p>
+                    <p><strong style="color: #0f0;">Exploration Strategy:</strong> Epsilon-greedy with configurable rate (default 20%). Balances exploitation (best Q-value) with exploration (random moves) for continuous learning.</p>
                 </div>
             </div>
 

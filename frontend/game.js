@@ -1203,6 +1203,50 @@ class PacManGame {
                 }
             });
         }
+
+        // Update DQN Q-Values (from Hugging Face Spaces)
+        if (prediction.q_values) {
+            const qValues = prediction.q_values;
+            const maxQ = Math.max(qValues.UP || 0, qValues.DOWN || 0, qValues.LEFT || 0, qValues.RIGHT || 0);
+
+            // Helper function to format Q-value with color
+            const formatQValue = (action) => {
+                const q = qValues[action] || 0;
+                const el = document.getElementById(`qValue${action.charAt(0) + action.slice(1).toLowerCase()}`);
+                if (el) {
+                    el.textContent = q.toFixed(2);
+                    // Color code: highest Q-value = green, others = dimmed
+                    if (Math.abs(q - maxQ) < 0.01) {
+                        el.style.color = '#00ff00';
+                        el.style.textShadow = '0 0 5px #00ff00';
+                    } else if (q > 0) {
+                        el.style.color = '#88ff88';
+                        el.style.textShadow = 'none';
+                    } else if (q < 0) {
+                        el.style.color = '#ff8888';
+                        el.style.textShadow = 'none';
+                    } else {
+                        el.style.color = '#888';
+                        el.style.textShadow = 'none';
+                    }
+                }
+            };
+
+            formatQValue('UP');
+            formatQValue('DOWN');
+            formatQValue('LEFT');
+            formatQValue('RIGHT');
+        } else {
+            // No Q-values available
+            ['qValueUp', 'qValueDown', 'qValueLeft', 'qValueRight'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = '-';
+                    el.style.color = '#666';
+                    el.style.textShadow = 'none';
+                }
+            });
+        }
     }
 
     updateDecisionDetailsUI(prediction) {
