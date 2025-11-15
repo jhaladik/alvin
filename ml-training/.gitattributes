@@ -1,0 +1,17 @@
+# Git LFS for large model files
+# Required for Hugging Face Spaces deployment
+
+# Track PyTorch model checkpoints with Git LFS
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
+
+# Track ONNX models with Git LFS
+*.onnx filter=lfs diff=lfs merge=lfs -text
+
+# Track TensorFlow models with Git LFS
+*.pb filter=lfs diff=lfs merge=lfs -text
+*.h5 filter=lfs diff=lfs merge=lfs -text
+
+# Track pickle files with Git LFS
+*.pkl filter=lfs diff=lfs merge=lfs -text
+*.pickle filter=lfs diff=lfs merge=lfs -text
