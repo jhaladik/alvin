@@ -69,7 +69,7 @@ class PacManEnv:
         return self._get_state()
 
     def _create_maze(self):
-        """Create simple maze with walls, pellets, power pellets"""
+        """Create FIXED maze layout (not random) for consistent learning"""
         self.walls = set()
         self.pellets = set()
         self.power_pellets = set()
@@ -82,11 +82,40 @@ class PacManEnv:
             self.walls.add((0, y))
             self.walls.add((self.maze_width - 1, y))
 
-        # Add some internal walls (simple pattern)
-        for x in range(5, self.maze_width - 5, 5):
-            for y in range(5, self.maze_height - 5, 3):
-                if random.random() < 0.5:
-                    self.walls.add((x, y))
+        # FIXED internal walls (classic Pac-Man inspired pattern)
+        # Horizontal walls
+        for x in range(3, 8):
+            self.walls.add((x, 3))
+            self.walls.add((x, self.maze_height - 4))
+        for x in range(self.maze_width - 8, self.maze_width - 3):
+            self.walls.add((x, 3))
+            self.walls.add((x, self.maze_height - 4))
+
+        # Vertical walls
+        for y in range(5, 10):
+            self.walls.add((5, y))
+            self.walls.add((self.maze_width - 6, y))
+        for y in range(self.maze_height - 10, self.maze_height - 5):
+            self.walls.add((5, y))
+            self.walls.add((self.maze_width - 6, y))
+
+        # Center T-shaped structure
+        center_x = self.maze_width // 2
+        center_y = self.maze_height // 2
+        for x in range(center_x - 2, center_x + 3):
+            self.walls.add((x, center_y - 2))
+            self.walls.add((x, center_y + 2))
+        for y in range(center_y - 2, center_y + 3):
+            self.walls.add((center_x - 2, y))
+            self.walls.add((center_x + 2, y))
+
+        # Corner blocks
+        for dx in [0, 1]:
+            for dy in [0, 1]:
+                self.walls.add((3 + dx, 5 + dy))
+                self.walls.add((self.maze_width - 4 - dx, 5 + dy))
+                self.walls.add((3 + dx, self.maze_height - 6 - dy))
+                self.walls.add((self.maze_width - 4 - dx, self.maze_height - 6 - dy))
 
         # Place pellets everywhere except walls
         for x in range(1, self.maze_width - 1):
@@ -94,7 +123,7 @@ class PacManEnv:
                 if (x, y) not in self.walls:
                     self.pellets.add((x, y))
 
-        # Place 4 power pellets in corners
+        # Place 4 power pellets in corners (FIXED positions)
         self.power_pellets = {
             (2, 2),
             (self.maze_width - 3, 2),
