@@ -165,7 +165,7 @@ def predict():
             'method': 'ml_dqn',
             'model_info': {
                 'type': 'dqn',
-                'input_dim': 768,
+                'input_dim': model.network[0].in_features,  # Dynamic input_dim
                 'output_dim': 4
             }
         })
@@ -189,7 +189,7 @@ def stats():
     return jsonify({
         'model_type': 'DQNNetwork',
         'learning_type': 'Deep Q-Learning (Reward-Based)',
-        'input_dim': 768,
+        'input_dim': model.network[0].in_features,  # Dynamic input_dim
         'output_dim': 4,
         'hidden_dims': [256, 256, 128],
         'total_parameters': sum(p.numel() for p in model.parameters()),
