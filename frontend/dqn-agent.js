@@ -6,9 +6,9 @@
 class DQNAgent {
     constructor() {
         // Use local ML inference server when running on localhost
-        // Otherwise use Cloudflare Worker
+        // Otherwise use Render.com ML server
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        this.workerURL = isLocal ? 'http://localhost:5000' : window.location.origin;
+        this.workerURL = isLocal ? 'http://localhost:5000' : 'https://alvin-wzbc.onrender.com';
 
         this.previousMoves = [];
         this.maxHistoryLength = 10;
