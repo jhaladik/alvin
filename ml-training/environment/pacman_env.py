@@ -173,20 +173,25 @@ class PacManEnv:
         # Check if move is valid (not into wall)
         if new_pos not in self.walls:
             self.player_pos = new_pos
+            reward += 0.5  # Small reward for valid movement
         else:
-            reward -= 1  # Small penalty for hitting walls
+            reward -= 2  # Penalty for hitting walls
 
         # Check pellet collection
         if self.player_pos in self.pellets:
             self.pellets.remove(self.player_pos)
             self.score += 10
-            reward += 10
+            reward += 25  # Increased from +10 - pellets are important!
+            # Progress bonus
+            pellets_collected = self.total_pellets - (len(self.pellets) + len(self.power_pellets))
+            progress = pellets_collected / max(1, self.total_pellets)
+            reward += progress * 20  # Bonus for collecting more of the maze
 
         # Check power pellet collection
         if self.player_pos in self.power_pellets:
             self.power_pellets.remove(self.player_pos)
             self.score += 50
-            reward += 50
+            reward += 100  # Increased from +50 - power pellets are strategic!
             self.powered_up = 40  # 40 steps of power
             # Make all ghosts scared
             self.ghost_scared = [True] * len(self.ghost_positions)
@@ -216,30 +221,45 @@ class PacManEnv:
                     self.ghost_positions[i] = (3, 3)
                     self.ghost_scared[i] = False
                 else:
-                    # Die
+                    # Die - REDUCED penalty from -500 to -100
                     self.lives -= 1
-                    reward -= 500
+                    reward -= 100  # More reasonable - death is bad but not catastrophic
                     if self.lives > 0:
                         # Respawn player
                         self.player_pos = (self.maze_width // 2, self.maze_height // 2)
                     break
 
         # Shaped rewards to encourage good behavior
-        # 1. Get closer to nearest pellet
+
+        # 1. Survival bonus - staying alive is good!
+        reward += 1.0
+
+        # 2. Get closer to nearest pellet
         if len(self.pellets) > 0:
             min_pellet_dist = min(self._manhattan_distance(self.player_pos, p) for p in self.pellets)
             if min_pellet_dist < self.last_distance_to_pellet:
-                reward += 1  # Moving toward pellet
+                reward += 3  # Increased from +1 - moving toward pellet is good!
+            elif min_pellet_dist > self.last_distance_to_pellet:
+                reward -= 1  # Moving away from pellets is bad
             self.last_distance_to_pellet = min_pellet_dist
 
-        # 2. Stay away from ghosts when not powered
-        if self.powered_up == 0:
-            min_ghost_dist = min(self._manhattan_distance(self.player_pos, g) for g in self.ghost_positions)
-            if min_ghost_dist < 3:
-                reward -= 5  # Danger zone
+        # 3. Ghost interaction rewards
+        min_ghost_dist = min(self._manhattan_distance(self.player_pos, g) for g in self.ghost_positions)
 
-        # 3. Small time penalty to encourage finishing quickly
-        reward -= 0.1
+        if self.powered_up > 0:
+            # When powered, encourage hunting ghosts
+            if min_ghost_dist < 3:
+                reward += 5  # Get close to ghosts when powered!
+            if min_ghost_dist < 5:
+                reward += 2  # Chase them!
+        else:
+            # When not powered, penalize being too close to ghosts
+            if min_ghost_dist < 2:
+                reward -= 10  # Very dangerous!
+            elif min_ghost_dist < 4:
+                reward -= 3  # Danger zone
+            else:
+                reward += 1  # Safe distance is good
 
         # Check if episode is done
         done = (
