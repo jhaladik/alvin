@@ -2,17 +2,16 @@
 
 ## What Changed
 
-**Previous Colab Training** (82k episodes):
-- Used **random maze** generation
-- High variance: scores ranged 120-2,030 points
-- Peak: Episode 51k with +250 avg reward
-- Final: Episode 82k with -609 avg reward (overfitting/harder mazes)
+**Previous Training Versions**:
+1. **Random Maze** (82k episodes): -609 avg reward, high variance
+2. **Fixed Closed Maze** (98k episodes): +352 avg reward, but Pac-Man was trapped!
 
-**New Fixed Maze Training**:
+**NEW: Fixed Maze with Opening** (Current):
 - Uses **same maze layout** every episode
+- **Ghost house has opening** at top - Pac-Man can escape!
+- Previous maze had a bug: center was completely closed box
 - More consistent learning (like classic Pac-Man)
-- Lower variance, clearer improvement trends
-- CPU training already showing: -1,430 → -1,193 avg reward
+- Expected: Even BETTER than +352 reward (no more trapped Pac-Man!)
 
 ## Why Fixed Maze is Better
 
@@ -60,10 +59,10 @@
 ### Training Configuration
 
 **Default Settings** (in `colab_train.py`):
-- Episodes: 100,000
+- Episodes: **20,000** (reduced from 100k for faster training)
 - Batch size: 64
 - Learning rate: 0.0001
-- Epsilon: 1.0 → 0.01 (decay 0.9999)
+- Epsilon: 1.0 → 0.01 (decay 0.999 - faster for 20k episodes)
 - Hidden layers: [256, 256, 128]
 - Input: 128 dimensions
 - Output: 4 actions (UP, DOWN, LEFT, RIGHT)
@@ -71,7 +70,7 @@
 **Maze**: Fixed 20×20 grid with:
 - Horizontal bars
 - Vertical columns
-- Center T-structure
+- **Center ghost house with opening** (Pac-Man can escape through top!)
 - Corner blocks
 - 4 power pellets in corners
 
@@ -79,11 +78,11 @@
 
 **Google Colab GPU (T4)**:
 - ~1-2 minutes per 1,000 episodes
-- 100k episodes: ~2-3 hours total
+- **20k episodes: ~30-40 minutes total**
 
 **Local CPU**:
 - ~5-7 minutes per 1,000 episodes
-- 100k episodes: ~10-12 hours total
+- **20k episodes: ~2-2.5 hours total**
 
 ### Monitoring Progress
 

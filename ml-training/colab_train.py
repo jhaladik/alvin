@@ -123,15 +123,28 @@ class PacManEnv:
             self.walls.add((5, y))
             self.walls.add((self.maze_width - 6, y))
 
-        # Center T-shaped structure
+        # Center ghost house (with opening at top for Pac-Man to exit)
         center_x = self.maze_width // 2
         center_y = self.maze_height // 2
+
+        # Bottom wall
         for x in range(center_x - 2, center_x + 3):
-            self.walls.add((x, center_y - 2))
             self.walls.add((x, center_y + 2))
+
+        # Left wall
         for y in range(center_y - 2, center_y + 3):
             self.walls.add((center_x - 2, y))
+
+        # Right wall
+        for y in range(center_y - 2, center_y + 3):
             self.walls.add((center_x + 2, y))
+
+        # Top wall with opening in the middle (Pac-Man can exit here)
+        self.walls.add((center_x - 2, center_y - 2))
+        self.walls.add((center_x - 1, center_y - 2))
+        # center_x is open (exit)
+        self.walls.add((center_x + 1, center_y - 2))
+        self.walls.add((center_x + 2, center_y - 2))
 
         # Corner blocks
         for dx in [0, 1]:
@@ -392,14 +405,14 @@ def main():
     print()
 
     # Configuration
-    NUM_EPISODES = 100000
+    NUM_EPISODES = 20000  # Reduced from 100k for faster training
     MAX_STEPS_PER_EPISODE = 1000
     BATCH_SIZE = 64
     LEARNING_RATE = 0.0001
     GAMMA = 0.99
     EPSILON_START = 1.0
     EPSILON_END = 0.01
-    EPSILON_DECAY = 0.9999
+    EPSILON_DECAY = 0.999  # Faster decay for shorter training (20k episodes)
     TARGET_UPDATE_FREQ = 100
     REPLAY_BUFFER_SIZE = 100000
     MIN_REPLAY_SIZE = 1000

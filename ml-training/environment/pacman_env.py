@@ -99,15 +99,28 @@ class PacManEnv:
             self.walls.add((5, y))
             self.walls.add((self.maze_width - 6, y))
 
-        # Center T-shaped structure
+        # Center ghost house (with opening at top for Pac-Man to exit)
         center_x = self.maze_width // 2
         center_y = self.maze_height // 2
+
+        # Bottom wall
         for x in range(center_x - 2, center_x + 3):
-            self.walls.add((x, center_y - 2))
             self.walls.add((x, center_y + 2))
+
+        # Left wall
         for y in range(center_y - 2, center_y + 3):
             self.walls.add((center_x - 2, y))
+
+        # Right wall
+        for y in range(center_y - 2, center_y + 3):
             self.walls.add((center_x + 2, y))
+
+        # Top wall with opening in the middle (Pac-Man can exit here)
+        self.walls.add((center_x - 2, center_y - 2))
+        self.walls.add((center_x - 1, center_y - 2))
+        # center_x is open (exit)
+        self.walls.add((center_x + 1, center_y - 2))
+        self.walls.add((center_x + 2, center_y - 2))
 
         # Corner blocks
         for dx in [0, 1]:

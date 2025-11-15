@@ -178,17 +178,28 @@ class PacManGame {
             walls.push({ x: this.gridSize - 6, y: y });
         }
 
-        // Center T-shaped structure
+        // Center ghost house (with opening at top for Pac-Man to exit)
         const centerX = Math.floor(this.gridSize / 2);
         const centerY = Math.floor(this.gridSize / 2);
+
+        // Bottom wall
         for (let x = centerX - 2; x <= centerX + 2; x++) {
-            walls.push({ x: x, y: centerY - 2 });
             walls.push({ x: x, y: centerY + 2 });
         }
+        // Left wall
         for (let y = centerY - 2; y <= centerY + 2; y++) {
             walls.push({ x: centerX - 2, y: y });
+        }
+        // Right wall
+        for (let y = centerY - 2; y <= centerY + 2; y++) {
             walls.push({ x: centerX + 2, y: y });
         }
+        // Top wall with opening in the middle (Pac-Man can exit here)
+        walls.push({ x: centerX - 2, y: centerY - 2 });
+        walls.push({ x: centerX - 1, y: centerY - 2 });
+        // centerX is open (exit)
+        walls.push({ x: centerX + 1, y: centerY - 2 });
+        walls.push({ x: centerX + 2, y: centerY - 2 });
 
         // Corner blocks
         for (let dx = 0; dx <= 1; dx++) {

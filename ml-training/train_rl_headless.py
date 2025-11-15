@@ -133,14 +133,14 @@ def main():
     print()
 
     # Hyperparameters
-    NUM_EPISODES = 100000
+    NUM_EPISODES = 20000  # Reduced from 100k for faster training
     MAX_STEPS_PER_EPISODE = 1000
     BATCH_SIZE = 64
     LEARNING_RATE = 0.0001
     GAMMA = 0.99
     EPSILON_START = 1.0
     EPSILON_END = 0.01
-    EPSILON_DECAY = 0.9999  # Slower decay for longer training
+    EPSILON_DECAY = 0.999  # Faster decay for shorter training (20k episodes)
     TARGET_UPDATE_FREQ = 100  # Update target network every N episodes
     REPLAY_BUFFER_SIZE = 100000
     MIN_REPLAY_SIZE = 1000
