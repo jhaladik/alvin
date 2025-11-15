@@ -39,9 +39,16 @@ def load_model():
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"DQN checkpoint not found: {checkpoint_path}")
 
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    print(f"  Checkpoint epoch: {checkpoint['epoch']}")
-    print(f"  Validation loss: {checkpoint['val_loss']:.2f}")
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+
+    # Handle both DQN and RL checkpoints
+    if 'epoch' in checkpoint:
+        print(f"  Checkpoint epoch: {checkpoint['epoch']}")
+        print(f"  Validation loss: {checkpoint['val_loss']:.2f}")
+    elif 'episode' in checkpoint:
+        print(f"  Checkpoint episode: {checkpoint['episode']}")
+        print(f"  Avg reward: {checkpoint['avg_reward']:.1f}")
+        print(f"  Epsilon: {checkpoint['epsilon']:.4f}")
 
     # Get input dimension from checkpoint config (fallback to 128)
     input_dim = checkpoint['config'].get('input_dim', 128)
